@@ -20,7 +20,7 @@ class SysLogininfor(Base):
     browser = Column(String(50), nullable=True, server_default="''", comment='浏览器类型')
     os = Column(String(50), nullable=True, server_default="''", comment='操作系统')
     status = Column(CHAR(1), nullable=True, server_default='0', comment='登录状态（0成功 1失败）')
-    msg = Column(String(255), nullable=True, server_default="''", comment='提示消息')
+    msg = Column(String(2000), nullable=True, server_default="''", comment='提示消息')
     login_time = Column(DateTime, nullable=True, default=datetime.now(), comment='访问时间')
 
     idx_sys_logininfor_s = Index('idx_sys_logininfor_s', status)

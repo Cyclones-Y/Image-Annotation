@@ -413,14 +413,21 @@ class LogAggregatorService:
             return
         start_id = '0-0'
         while True:
-            result = await redis.xautoclaim(
-                name=LogConfig.log_stream_key,
-                groupname=LogConfig.log_stream_group,
-                consumername=consumer_name,
-                min_idle_time=LogConfig.log_stream_claim_idle_ms,
-                start_id=start_id,
-                count=LogConfig.log_stream_claim_batch_size,
-            )
+            try:
+                result = await redis.xautoclaim(
+                    name=LogConfig.log_stream_key,
+                    groupname=LogConfig.log_stream_group,
+                    consumername=consumer_name,
+                    min_idle_time=LogConfig.log_stream_claim_idle_ms,
+                    start_id=start_id,
+                    count=LogConfig.log_stream_claim_batch_size,
+                )
+            except Exception as exc:
+                msg = str(exc).lower()
+                if 'unknown command' in msg or 'xautoclaim' in msg:
+                    await cls._claim_pending_legacy(redis, consumer_name)
+                    return
+                raise
             if not result:
                 return
             next_start_id, messages = result[0], result[1]
@@ -429,6 +436,40 @@ class LogAggregatorService:
             if not messages or next_start_id == start_id:
                 return
             start_id = next_start_id
+
+    @classmethod
+    async def _claim_pending_legacy(cls, redis: aioredis.Redis, consumer_name: str) -> None:
+        if LogConfig.log_stream_claim_idle_ms <= 0:
+            return
+        pending = await redis.xpending_range(
+            LogConfig.log_stream_key,
+            LogConfig.log_stream_group,
+            '-',
+            '+',
+            LogConfig.log_stream_claim_batch_size,
+        )
+        if not pending:
+            return
+        ids = []
+        for item in pending:
+            mid = None
+            if isinstance(item, dict):
+                mid = item.get('message_id') or item.get('id')
+            elif isinstance(item, (list, tuple)) and item:
+                mid = item[0]
+            if mid:
+                ids.append(mid)
+        if not ids:
+            return
+        messages = await redis.xclaim(
+            name=LogConfig.log_stream_key,
+            groupname=LogConfig.log_stream_group,
+            consumername=consumer_name,
+            min_idle_time=LogConfig.log_stream_claim_idle_ms,
+            message_ids=ids,
+        )
+        if messages:
+            await cls._process_messages(redis, LogConfig.log_stream_key, messages)
 
     @classmethod
     async def consume_stream(cls, redis: aioredis.Redis) -> None:

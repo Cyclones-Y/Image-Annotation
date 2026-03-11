@@ -240,10 +240,16 @@ pnpm dev:mp-weixin
 # 进入后端目录
 cd Image-Annotation-backend
 
-# 如果使用的是MySQL数据库，请执行以下命令安装项目依赖环境
-pip3 install -r requirements.txt
-# 如果使用的是PostgreSQL数据库，请执行以下命令安装项目依赖环境
-pip3 install -r requirements-pg.txt
+# 使用 uv 管理虚拟环境与依赖（推荐）
+uv venv .venv
+# 如果使用的是 MySQL 数据库
+uv pip install -r requirements.txt -p .venv
+# 如果使用的是 PostgreSQL 数据库
+uv pip install -r requirements-pg.txt -p .venv
+
+# 也可以使用脚本一键完成（Windows PowerShell）
+# powershell -ExecutionPolicy Bypass -File .\scripts\uv_setup.ps1 -Db mysql -Venv .venv
+# powershell -ExecutionPolicy Bypass -File .\scripts\uv_run.ps1 -Env dev -Venv .venv
 
 # 配置环境
 在.env.dev文件中配置开发环境的数据库和redis
@@ -253,7 +259,7 @@ pip3 install -r requirements-pg.txt
 2.如果使用的是MySQL数据库，使用命令或数据库连接工具运行sql文件夹下的ruoyi-fastapi.sql；如果使用的是PostgreSQL数据库，使用命令或数据库连接工具运行sql文件夹下的ruoyi-fastapi-pg.sql
 
 # 运行后端
-python3 app.py --env=dev
+.\.venv\Scripts\python app.py --env=dev
 ```
 
 #### 访问
@@ -286,7 +292,9 @@ npm run build:prod 或 yarn build:prod
 在.env.prod文件中配置生产环境的数据库和redis
 
 # 运行后端
-python3 app.py --env=prod
+uv venv .venv
+uv pip install -r requirements.txt -p .venv
+.\.venv\Scripts\python app.py --env=prod
 ```
 
 ### Docker Compose部署方式

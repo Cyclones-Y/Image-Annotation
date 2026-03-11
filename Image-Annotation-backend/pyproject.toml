@@ -1,0 +1,29 @@
+[project]
+name = "image-annotation-backend"
+version = "1.9.0"
+description = "FastAPI backend for Image-Annotation"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[all]==0.128.2",
+    "SQLAlchemy[asyncio]==2.0.46",
+    "pydantic>=2.11.4",
+    "PyJWT[crypto]==2.11.0",
+    "redis==7.1.0",
+    "loguru==0.7.3",
+    "uvicorn==0.41.0",
+    "asyncmy>=0.2.11",
+]
+
+[project.optional-dependencies]
+mysql = [
+    "asyncmy==0.2.11",
+    "PyMySQL==1.1.2"
+]
+pg = [
+    "asyncpg==0.31.0",
+    "psycopg2==2.9.11"
+]
+dev = [
+    "ruff==0.15.0"
+]
+

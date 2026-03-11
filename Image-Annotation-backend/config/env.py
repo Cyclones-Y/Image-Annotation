@@ -65,6 +65,37 @@ class DataBaseSettings(BaseSettings):
         return self.db_type
 
 
+class SecondaryDataBaseSettings(BaseSettings):
+    """
+    次级数据库配置（用于读取图片资源表）
+    """
+
+    secondary_db_type: Literal['mysql', 'postgresql'] = 'mysql'
+    secondary_db_host: str = '127.0.0.1'
+    secondary_db_port: int = 3306
+    secondary_db_username: str = 'root'
+    secondary_db_password: str = 'mysqlroot'
+    secondary_db_database: str = 'ruoyi-fastapi'
+    secondary_db_echo: bool = False
+    secondary_db_max_overflow: int = 10
+    secondary_db_pool_size: int = 10
+    secondary_db_pool_recycle: int = 3600
+    secondary_db_pool_timeout: int = 30
+
+
+class SecondaryImageTableSettings(BaseSettings):
+    """
+    次级数据库图片表配置（表名与字段名均通过环境变量注入）
+    """
+
+    secondary_db_image_table: str = 'annotation_image'
+    secondary_db_image_id_field: str = 'id'
+    secondary_db_image_url_field: str = 'oss_url'
+    secondary_db_image_upload_time_field: str = 'create_time'
+    secondary_db_image_width_field: str = 'width'
+    secondary_db_image_height_field: str = 'height'
+
+
 class RedisSettings(BaseSettings):
     """
     Redis配置
@@ -209,6 +240,18 @@ class GetConfig:
         # 实例化数据库配置模型
         return DataBaseSettings()
 
+    def get_secondary_database_config(self) -> SecondaryDataBaseSettings:
+        """
+        获取次级数据库配置
+        """
+        return SecondaryDataBaseSettings()
+
+    def get_secondary_image_table_config(self) -> SecondaryImageTableSettings:
+        """
+        获取次级数据库图片表配置
+        """
+        return SecondaryImageTableSettings()
+
     def get_redis_config(self) -> RedisSettings:
         """
         获取Redis配置
@@ -257,7 +300,7 @@ class GetConfig:
             parser = argparse.ArgumentParser(description='命令行参数')
             parser.add_argument('--env', type=str, default='', help='运行环境')
             # 解析命令行参数
-            args = parser.parse_args()
+            args, _unknown = parser.parse_known_args()
             # 设置环境变量，如果未设置命令行参数，默认APP_ENV为dev
             os.environ['APP_ENV'] = args.env if args.env else 'dev'
         # 读取运行环境
@@ -279,6 +322,10 @@ AppConfig = get_config.get_app_config()
 JwtConfig = get_config.get_jwt_config()
 # 数据库配置
 DataBaseConfig = get_config.get_database_config()
+# 次级数据库配置
+SecondaryDataBaseConfig = get_config.get_secondary_database_config()
+# 次级数据库图片表配置
+SecondaryImageTableConfig = get_config.get_secondary_image_table_config()
 # Redis配置
 RedisConfig = get_config.get_redis_config()
 # 日志配置

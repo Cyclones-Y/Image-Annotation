@@ -1,0 +1,24 @@
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Login from './pages/Login'
+import GalleryPage from './pages/Gallery'
+import PrivateRoute from './components/PrivateRoute'
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route 
+          path="/" 
+          element={
+            <PrivateRoute>
+              <GalleryPage />
+            </PrivateRoute>
+          } 
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}

@@ -66,6 +66,36 @@ services:
       timeout: 10s
       retries: 30
 
+  image-annotation-pg-secondary:
+    image: postgres:14
+    container_name: image-annotation-pg-secondary
+    environment:
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: image-annotation-secondary
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "15433:5432"
+    networks:
+      - image-annotation-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  frontend-image-gallery:
+    build:
+      context: ./frontend-image-gallery
+      dockerfile: Dockerfile
+    image: frontend-image-gallery:latest
+    container_name: frontend-image-gallery
+    ports:
+      - "12680:80"
+    depends_on:
+      - image-annotation-backend-pg
+    networks:
+      - image-annotation-network
+
 # 网络配置
 networks:
   image-annotation-network:

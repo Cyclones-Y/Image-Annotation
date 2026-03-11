@@ -1,0 +1,219 @@
+:root {
+  --primary-color: #722ed1;
+  --secondary-color: #13c2c2;
+  --bg-dark: #0f0c29;
+  --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --text-primary: #fff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --input-border: 1px solid rgba(255, 255, 255, 0.1);
+  --input-focus-border: 1px solid #13c2c2;
+  --btn-gradient: linear-gradient(90deg, #722ed1, #13c2c2);
+}
+
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+}
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--bg-gradient);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background Particles */
+.background-shapes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+/* Login Card */
+.login-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--glass-border);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  z-index: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  transform: rotate(30deg);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Header */
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logo-circle {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 20px rgba(114, 46, 209, 0.5);
+}
+
+.logo-inner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-title {
+  color: var(--text-primary) !important;
+  font-weight: 700 !important;
+  letter-spacing: 2px;
+  margin-bottom: 5px !important;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(19, 194, 194, 0.5);
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+/* Form Elements */
+.ant-form-item-label > label {
+  color: var(--text-secondary) !important;
+}
+
+.ant-input-affix-wrapper {
+  background: var(--input-bg) !important;
+  border: var(--input-border) !important;
+  border-radius: 8px !important;
+  padding: 10px 15px !important;
+  color: var(--text-primary) !important;
+  transition: all 0.3s ease;
+}
+
+.ant-input {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-input-affix-wrapper:hover,
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused {
+  border: var(--input-focus-border) !important;
+  box-shadow: 0 0 10px rgba(19, 194, 194, 0.3) !important;
+}
+
+.site-form-item-icon {
+  color: var(--secondary-color);
+}
+
+/* Button */
+.login-button {
+  background: var(--btn-gradient) !important;
+  border: none !important;
+  height: 48px !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: 1px;
+  color: #fff !important;
+  text-transform: uppercase;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 4px 15px rgba(114, 46, 209, 0.4);
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(19, 194, 194, 0.6);
+}
+
+/* Captcha */
+.captcha-img-wrapper {
+  height: 44px; /* Matches input height roughly */
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  border: var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.captcha-img-wrapper:hover {
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 10px rgba(19, 194, 194, 0.3);
+}
+
+.captcha-img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+}
+
+/* Footer */
+.login-footer {
+  position: absolute;
+  bottom: 20px;
+  text-align: center;
+  width: 100%;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-card {
+    margin: 20px;
+    padding: 30px 20px;
+  }
+  
+  .login-title {
+    font-size: 24px !important;
+  }
+}

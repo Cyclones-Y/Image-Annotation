@@ -66,6 +66,36 @@ services:
       timeout: 10s
       retries: 30
 
+  image-annotation-mysql-secondary:
+    image: mysql:8.0
+    container_name: image-annotation-mysql-secondary
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: image-annotation-secondary
+    ports:
+      - "13308:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --skip-character-set-client-handshake=1
+    networks:
+      - image-annotation-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  frontend-image-gallery:
+    build:
+      context: ./frontend-image-gallery
+      dockerfile: Dockerfile
+    image: frontend-image-gallery:latest
+    container_name: frontend-image-gallery
+    ports:
+      - "12680:80"
+    depends_on:
+      - image-annotation-backend-my
+    networks:
+      - image-annotation-network
+
 # 网络配置
 networks:
   image-annotation-network:
