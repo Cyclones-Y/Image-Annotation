@@ -16,7 +16,7 @@ import {
   message
 } from 'antd'
 import { HomeOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
 import AnnotationToolbar from '../../components/annotation/AnnotationToolbar'
 import LabelPanel from '../../components/annotation/LabelPanel'
@@ -45,7 +45,10 @@ const defaultLabels: LabelDefinition[] = [
 
 export default function AnnotationPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const projectId = searchParams.get('projectId') || ''
+  const taskId = searchParams.get('taskId') || ''
   const [imageSrc, setImageSrc] = useState<string>()
   const [imageSize, setImageSize] = useState<ImageSize>({ width: 1280, height: 720 })
   const [imageUrlInput, setImageUrlInput] = useState('')
@@ -322,6 +325,8 @@ export default function AnnotationPage() {
               />
               <Button onClick={loadImageFromUrl}>加载地址图像</Button>
               <Tag color="blue">自动保存：{lastSavedAt || '未保存'}</Tag>
+              {projectId ? <Tag color="purple">项目ID：{projectId}</Tag> : null}
+              {taskId ? <Tag color="geekblue">任务ID：{taskId}</Tag> : null}
             </Space>
           </Card>
 

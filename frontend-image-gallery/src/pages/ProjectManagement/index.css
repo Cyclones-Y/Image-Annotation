@@ -1,0 +1,33 @@
+.project-management-modal .ant-form-item-label > label {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+.project-management-modal .ant-input,
+.project-management-modal .ant-input-number-input,
+.project-management-modal .ant-select-selection-item,
+.project-management-modal .ant-select-selection-placeholder,
+.project-management-modal .ant-picker-input > input,
+.project-management-modal .ant-input-textarea textarea {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+.project-management-modal .ant-input,
+.project-management-modal .ant-input-affix-wrapper,
+.project-management-modal .ant-input-number,
+.project-management-modal .ant-select-selector,
+.project-management-modal .ant-input-textarea textarea {
+  background: #fff !important;
+}
+
+.project-management-modal .ant-modal-body {
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.project-management-select-dropdown {
+  min-width: 280px !important;
+}
+
+.project-management-select-dropdown .ant-select-item-option-content {
+  white-space: normal;
+}
