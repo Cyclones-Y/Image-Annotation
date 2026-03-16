@@ -1,7 +1,7 @@
 import { Card, Modal, Spin, Typography } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Masonry } from 'masonic'
-import { fetchImagesPage, ImageListItem } from '../services/imageApi'
+import { fetchImagesPage, ImageListItem, warmImageCache } from '../services/imageApi'
 
 type GalleryItem = ImageListItem
 
@@ -19,7 +19,9 @@ export default function ImageGallery() {
     setLoadingPage(true)
     try {
       const res = await fetchImagesPage(page, 40)
-      setItems((prev) => [...prev, ...(Array.isArray(res.rows) ? res.rows : [])])
+      const nextRows = Array.isArray(res.rows) ? res.rows : []
+      setItems((prev) => [...prev, ...nextRows])
+      warmImageCache(nextRows.map((item) => item.imageUrl)).catch(() => {})
       setHasNext(res.hasNext)
       setPage((p) => p + 1)
     } finally {

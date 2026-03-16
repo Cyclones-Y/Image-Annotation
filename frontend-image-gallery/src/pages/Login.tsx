@@ -88,9 +88,9 @@ export default function Login() {
           if (token) {
             Cookies.set('Admin-Token', token, { path: '/' })
             message.success('登录成功')
-            let from = (location.state as any)?.from?.pathname || '/'
+            let from = (location.state as any)?.from?.pathname || '/home'
             if (from === '/login') {
-              from = '/'
+              from = '/home'
             }
             // 确保 Cookie 写入后再跳转
             setTimeout(() => {

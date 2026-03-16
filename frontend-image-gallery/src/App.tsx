@@ -1,7 +1,9 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import HomePage from './pages/Home'
 import GalleryPage from './pages/Gallery'
+import ProjectManagementPage from './pages/ProjectManagement'
 import PrivateRoute from './components/PrivateRoute'
 
 export default function App() {
@@ -10,14 +12,31 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route 
-          path="/" 
+          path="/home" 
+          element={
+            <PrivateRoute>
+              <HomePage />
+            </PrivateRoute>
+          } 
+        />
+        <Route
+          path="/gallery"
           element={
             <PrivateRoute>
               <GalleryPage />
             </PrivateRoute>
-          } 
+          }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/projects"
+          element={
+            <PrivateRoute>
+              <ProjectManagementPage />
+            </PrivateRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
   )
