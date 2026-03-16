@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+ import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Button,
@@ -21,6 +21,7 @@ import {
   CheckCircleOutlined,
   DashboardOutlined,
   FolderOpenOutlined,
+  FormOutlined,
   PictureOutlined,
   ProjectOutlined
 } from '@ant-design/icons'
@@ -95,6 +96,7 @@ export default function HomePage() {
 
   const quickActions = [
     { title: '进入图库', icon: <PictureOutlined />, onClick: () => navigate('/gallery') },
+    { title: '图像标注', icon: <FormOutlined />, onClick: () => navigate('/annotator') },
     { title: '项目管理', icon: <ProjectOutlined />, onClick: () => navigate('/projects') },
     { title: '任务统计', icon: <BarChartOutlined />, onClick: () => navigate('/projects') }
   ]

@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import HomePage from './pages/Home'
 import GalleryPage from './pages/Gallery'
 import ProjectManagementPage from './pages/ProjectManagement'
+import AnnotationPage from './pages/Annotation'
 import PrivateRoute from './components/PrivateRoute'
 
 export default function App() {
@@ -32,6 +33,14 @@ export default function App() {
           element={
             <PrivateRoute>
               <ProjectManagementPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/annotator"
+          element={
+            <PrivateRoute>
+              <AnnotationPage />
             </PrivateRoute>
           }
         />
