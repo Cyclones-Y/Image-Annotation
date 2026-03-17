@@ -1089,6 +1089,637 @@ comment on column ai_chat_config.image_max_size_mb is '图片最大大小(MB)';
 comment on column ai_chat_config.create_time is '创建时间';
 comment on column ai_chat_config.update_time is '更新时间';
 
+-- ----------------------------
+-- 22、标注项目表
+-- ----------------------------
+drop table if exists anno_audit_log;
+drop table if exists anno_export_item;
+drop table if exists anno_export_job;
+drop table if exists anno_import_job;
+drop table if exists anno_rework_ticket;
+drop table if exists anno_qc_result;
+drop table if exists anno_qc_item;
+drop table if exists anno_qc_task;
+drop table if exists anno_annotation_revision;
+drop table if exists anno_annotation;
+drop table if exists anno_label_attr_option;
+drop table if exists anno_label_attr_def;
+drop table if exists anno_label_class;
+drop table if exists anno_task_item;
+drop table if exists anno_task_config;
+drop table if exists anno_task;
+drop table if exists anno_dataset_item;
+drop table if exists anno_dataset;
+drop table if exists anno_project_schema;
+drop table if exists anno_project_member;
+drop table if exists anno_project;
+
+create table anno_project (
+    project_id bigserial not null,
+    project_code varchar(64) not null,
+    project_name varchar(128) not null,
+    owner_id bigint not null,
+    project_status char(1) default '0',
+    deadline timestamp(0),
+    config_json jsonb,
+    del_flag char(1) default '0',
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    update_by varchar(64) default '',
+    update_time timestamp(0),
+    remark varchar(500) default null,
+    primary key (project_id)
+);
+create unique index uk_anno_project_code on anno_project(project_code);
+create index idx_anno_project_status on anno_project(project_status);
+create index idx_anno_project_owner on anno_project(owner_id);
+comment on table anno_project is '标注项目表';
+comment on column anno_project.project_id is '项目ID';
+comment on column anno_project.project_code is '项目编码';
+comment on column anno_project.project_name is '项目名称';
+comment on column anno_project.owner_id is '项目负责人用户ID';
+comment on column anno_project.project_status is '项目状态（0进行中 1已完成 2暂停 3归档）';
+comment on column anno_project.deadline is '项目截止时间';
+comment on column anno_project.config_json is '项目扩展配置JSON';
+comment on column anno_project.del_flag is '删除标志（0代表存在 2代表删除）';
+comment on column anno_project.create_by is '创建者';
+comment on column anno_project.create_time is '创建时间';
+comment on column anno_project.update_by is '更新者';
+comment on column anno_project.update_time is '更新时间';
+comment on column anno_project.remark is '备注';
+
+create table anno_project_member (
+    project_id bigint not null,
+    user_id bigint not null,
+    project_role varchar(32) not null,
+    can_annotate char(1) default '0',
+    can_review char(1) default '0',
+    can_export char(1) default '0',
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    primary key (project_id, user_id)
+);
+create index idx_anno_pm_user on anno_project_member(user_id);
+comment on table anno_project_member is '项目成员权限表';
+comment on column anno_project_member.project_id is '项目ID';
+comment on column anno_project_member.user_id is '用户ID';
+comment on column anno_project_member.project_role is '项目角色（owner/manager/annotator/reviewer/viewer）';
+comment on column anno_project_member.can_annotate is '是否可标注（0否 1是）';
+comment on column anno_project_member.can_review is '是否可质检（0否 1是）';
+comment on column anno_project_member.can_export is '是否可导出（0否 1是）';
+comment on column anno_project_member.create_by is '创建者';
+comment on column anno_project_member.create_time is '创建时间';
+
+create table anno_project_schema (
+    schema_id bigserial not null,
+    project_id bigint not null,
+    version_no int4 not null,
+    schema_json jsonb not null,
+    is_active char(1) default '1',
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    primary key (schema_id)
+);
+create unique index uk_anno_schema_proj_ver on anno_project_schema(project_id, version_no);
+create index idx_anno_schema_active on anno_project_schema(project_id, is_active);
+comment on table anno_project_schema is '项目标签体系版本表';
+comment on column anno_project_schema.schema_id is '版本ID';
+comment on column anno_project_schema.project_id is '项目ID';
+comment on column anno_project_schema.version_no is '版本号';
+comment on column anno_project_schema.schema_json is '标签体系定义JSON';
+comment on column anno_project_schema.is_active is '是否当前生效版本（0否 1是）';
+comment on column anno_project_schema.create_by is '创建者';
+comment on column anno_project_schema.create_time is '创建时间';
+
+create table anno_dataset (
+    dataset_id bigserial not null,
+    project_id bigint not null,
+    dataset_name varchar(128) not null,
+    source_type varchar(32) default 'upload',
+    total_count int4 default 0,
+    dataset_status char(1) default '0',
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    update_by varchar(64) default '',
+    update_time timestamp(0),
+    primary key (dataset_id)
+);
+create index idx_anno_dataset_proj on anno_dataset(project_id, dataset_status);
+comment on table anno_dataset is '数据集表';
+comment on column anno_dataset.dataset_id is '数据集ID';
+comment on column anno_dataset.project_id is '项目ID';
+comment on column anno_dataset.dataset_name is '数据集名称';
+comment on column anno_dataset.source_type is '数据来源类型';
+comment on column anno_dataset.total_count is '数据总量';
+comment on column anno_dataset.dataset_status is '数据集状态（0处理中 1可用 2失败）';
+comment on column anno_dataset.create_by is '创建者';
+comment on column anno_dataset.create_time is '创建时间';
+comment on column anno_dataset.update_by is '更新者';
+comment on column anno_dataset.update_time is '更新时间';
+
+create table anno_dataset_item (
+    item_id bigserial not null,
+    dataset_id bigint not null,
+    project_id bigint not null,
+    file_uri text not null,
+    file_name varchar(255),
+    width int4,
+    height int4,
+    sha256 char(64),
+    meta_json jsonb,
+    create_time timestamp(0),
+    primary key (item_id)
+);
+create index idx_anno_item_dataset on anno_dataset_item(dataset_id);
+create index idx_anno_item_project on anno_dataset_item(project_id);
+create index idx_anno_item_sha256 on anno_dataset_item(project_id, sha256);
+comment on table anno_dataset_item is '数据集明细表';
+comment on column anno_dataset_item.item_id is '数据项ID';
+comment on column anno_dataset_item.dataset_id is '数据集ID';
+comment on column anno_dataset_item.project_id is '项目ID';
+comment on column anno_dataset_item.file_uri is '文件存储地址';
+comment on column anno_dataset_item.file_name is '文件名称';
+comment on column anno_dataset_item.width is '图像宽度';
+comment on column anno_dataset_item.height is '图像高度';
+comment on column anno_dataset_item.sha256 is '文件哈希';
+comment on column anno_dataset_item.meta_json is '扩展元数据JSON';
+comment on column anno_dataset_item.create_time is '创建时间';
+
+create table anno_task (
+    task_id bigserial not null,
+    project_id bigint not null,
+    task_name varchar(128) not null,
+    priority varchar(16) default 'medium',
+    task_status char(1) default '0',
+    assignee_id bigint,
+    review_mode varchar(32) default 'double_review',
+    due_time timestamp(0),
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    update_by varchar(64) default '',
+    update_time timestamp(0),
+    remark varchar(500) default null,
+    primary key (task_id)
+);
+create index idx_anno_task_proj_status on anno_task(project_id, task_status);
+create index idx_anno_task_assignee on anno_task(assignee_id, task_status);
+comment on table anno_task is '标注任务表';
+comment on column anno_task.task_id is '任务ID';
+comment on column anno_task.project_id is '项目ID';
+comment on column anno_task.task_name is '任务名称';
+comment on column anno_task.priority is '优先级（high/medium/low）';
+comment on column anno_task.task_status is '任务状态（0待开始 1进行中 2待质检 3已完成 4关闭）';
+comment on column anno_task.assignee_id is '任务执行人用户ID';
+comment on column anno_task.review_mode is '复审模式';
+comment on column anno_task.due_time is '任务截止时间';
+comment on column anno_task.create_by is '创建者';
+comment on column anno_task.create_time is '创建时间';
+comment on column anno_task.update_by is '更新者';
+comment on column anno_task.update_time is '更新时间';
+comment on column anno_task.remark is '备注';
+
+create table anno_task_config (
+    task_id bigint not null,
+    autosave_interval_sec int4 default 15,
+    review_required char(1) default '1',
+    max_objects_per_image int4 default 50,
+    quality_threshold numeric(5,4) default 0.8000,
+    allow_skip char(1) default '1',
+    update_by varchar(64) default '',
+    update_time timestamp(0),
+    primary key (task_id)
+);
+comment on table anno_task_config is '任务配置表';
+comment on column anno_task_config.task_id is '任务ID';
+comment on column anno_task_config.autosave_interval_sec is '自动保存间隔（秒）';
+comment on column anno_task_config.review_required is '是否强制质检（0否 1是）';
+comment on column anno_task_config.max_objects_per_image is '单图最大标注目标数';
+comment on column anno_task_config.quality_threshold is '质量阈值';
+comment on column anno_task_config.allow_skip is '是否允许跳过（0否 1是）';
+comment on column anno_task_config.update_by is '更新者';
+comment on column anno_task_config.update_time is '更新时间';
+
+create table anno_task_item (
+    task_item_id bigserial not null,
+    task_id bigint not null,
+    item_id bigint not null,
+    task_item_status char(1) default '0',
+    assignee_id bigint,
+    claimed_at timestamp(0),
+    finished_at timestamp(0),
+    lock_token varchar(64),
+    lock_expire_at timestamp(0),
+    version int4 default 0,
+    primary key (task_item_id)
+);
+create unique index uk_anno_task_item on anno_task_item(task_id, item_id);
+create index idx_anno_task_item_status on anno_task_item(task_id, task_item_status);
+create index idx_anno_task_item_lock on anno_task_item(lock_expire_at);
+comment on table anno_task_item is '任务数据分配表';
+comment on column anno_task_item.task_item_id is '任务数据分配ID';
+comment on column anno_task_item.task_id is '任务ID';
+comment on column anno_task_item.item_id is '数据项ID';
+comment on column anno_task_item.task_item_status is '分配状态（0待领取 1标注中 2待质检 3返工中 4完成）';
+comment on column anno_task_item.assignee_id is '当前执行人用户ID';
+comment on column anno_task_item.claimed_at is '领取时间';
+comment on column anno_task_item.finished_at is '完成时间';
+comment on column anno_task_item.lock_token is '并发锁令牌';
+comment on column anno_task_item.lock_expire_at is '锁过期时间';
+comment on column anno_task_item.version is '乐观锁版本号';
+
+create table anno_label_class (
+    label_id bigserial not null,
+    project_id bigint not null,
+    schema_version int4 not null,
+    label_code varchar(64) not null,
+    label_name varchar(64) not null,
+    color varchar(16),
+    sort_order int4 default 0,
+    status char(1) default '0',
+    primary key (label_id)
+);
+create unique index uk_anno_label_code on anno_label_class(project_id, schema_version, label_code);
+comment on table anno_label_class is '标签类目表';
+comment on column anno_label_class.label_id is '标签ID';
+comment on column anno_label_class.project_id is '项目ID';
+comment on column anno_label_class.schema_version is '标签体系版本号';
+comment on column anno_label_class.label_code is '标签编码';
+comment on column anno_label_class.label_name is '标签名称';
+comment on column anno_label_class.color is '标签颜色';
+comment on column anno_label_class.sort_order is '显示顺序';
+comment on column anno_label_class.status is '状态（0启用 1停用）';
+
+create table anno_label_attr_def (
+    attr_def_id bigserial not null,
+    label_id bigint not null,
+    attr_key varchar(64) not null,
+    attr_name varchar(64) not null,
+    value_type varchar(16) not null,
+    required_flag char(1) default '0',
+    constraints_json jsonb,
+    primary key (attr_def_id)
+);
+create unique index uk_anno_attr_key on anno_label_attr_def(label_id, attr_key);
+comment on table anno_label_attr_def is '标签属性定义表';
+comment on column anno_label_attr_def.attr_def_id is '属性定义ID';
+comment on column anno_label_attr_def.label_id is '标签ID';
+comment on column anno_label_attr_def.attr_key is '属性键';
+comment on column anno_label_attr_def.attr_name is '属性名称';
+comment on column anno_label_attr_def.value_type is '值类型（string/number/boolean/enum）';
+comment on column anno_label_attr_def.required_flag is '是否必填（0否 1是）';
+comment on column anno_label_attr_def.constraints_json is '属性约束JSON';
+
+create table anno_label_attr_option (
+    option_id bigserial not null,
+    attr_def_id bigint not null,
+    option_value varchar(128) not null,
+    option_label varchar(128) not null,
+    sort_order int4 default 0,
+    is_default char(1) default '0',
+    primary key (option_id)
+);
+create index idx_anno_option_attr on anno_label_attr_option(attr_def_id);
+comment on table anno_label_attr_option is '标签属性枚举选项表';
+comment on column anno_label_attr_option.option_id is '选项ID';
+comment on column anno_label_attr_option.attr_def_id is '属性定义ID';
+comment on column anno_label_attr_option.option_value is '选项值';
+comment on column anno_label_attr_option.option_label is '选项显示名';
+comment on column anno_label_attr_option.sort_order is '显示顺序';
+comment on column anno_label_attr_option.is_default is '是否默认（0否 1是）';
+
+create table anno_annotation (
+    annotation_id bigserial not null,
+    task_item_id bigint not null,
+    project_id bigint not null,
+    task_id bigint not null,
+    item_id bigint not null,
+    current_revision_no int4 default 0,
+    annotation_status char(1) default '0',
+    result_json jsonb not null,
+    schema_version int4,
+    annotator_id bigint,
+    submitted_at timestamp(0),
+    version int4 default 0,
+    create_time timestamp(0),
+    update_time timestamp(0),
+    primary key (annotation_id)
+);
+create unique index uk_anno_annotation_task_item on anno_annotation(task_item_id);
+create index idx_anno_annotation_task on anno_annotation(project_id, task_id);
+create index idx_anno_annotation_item on anno_annotation(item_id);
+comment on table anno_annotation is '标注结果快照表';
+comment on column anno_annotation.annotation_id is '标注结果ID';
+comment on column anno_annotation.task_item_id is '任务数据分配ID';
+comment on column anno_annotation.project_id is '项目ID';
+comment on column anno_annotation.task_id is '任务ID';
+comment on column anno_annotation.item_id is '数据项ID';
+comment on column anno_annotation.current_revision_no is '当前版本号';
+comment on column anno_annotation.annotation_status is '标注状态（0草稿 1已提交 2质检退回 3通过）';
+comment on column anno_annotation.result_json is '当前标注结果JSON';
+comment on column anno_annotation.schema_version is '标签体系版本号';
+comment on column anno_annotation.annotator_id is '标注人用户ID';
+comment on column anno_annotation.submitted_at is '提交时间';
+comment on column anno_annotation.version is '乐观锁版本号';
+comment on column anno_annotation.create_time is '创建时间';
+comment on column anno_annotation.update_time is '更新时间';
+
+create table anno_annotation_revision (
+    revision_id bigserial not null,
+    annotation_id bigint not null,
+    revision_no int4 not null,
+    operation_type varchar(16) not null,
+    result_json jsonb not null,
+    changed_by bigint,
+    change_reason varchar(256),
+    create_time timestamp(0),
+    primary key (revision_id)
+);
+create unique index uk_anno_revision_no on anno_annotation_revision(annotation_id, revision_no);
+create index idx_anno_revision_ct on anno_annotation_revision(create_time);
+comment on table anno_annotation_revision is '标注结果历史版本表';
+comment on column anno_annotation_revision.revision_id is '历史版本ID';
+comment on column anno_annotation_revision.annotation_id is '标注结果ID';
+comment on column anno_annotation_revision.revision_no is '版本号';
+comment on column anno_annotation_revision.operation_type is '操作类型（create/save/submit/rework）';
+comment on column anno_annotation_revision.result_json is '版本标注结果JSON';
+comment on column anno_annotation_revision.changed_by is '变更人用户ID';
+comment on column anno_annotation_revision.change_reason is '变更原因';
+comment on column anno_annotation_revision.create_time is '创建时间';
+
+create table anno_qc_task (
+    qc_task_id bigserial not null,
+    project_id bigint not null,
+    source_task_id bigint not null,
+    sample_strategy varchar(32) default 'full',
+    sample_rate numeric(5,2) default 100.00,
+    qc_status char(1) default '0',
+    reviewer_id bigint,
+    create_time timestamp(0),
+    update_time timestamp(0),
+    primary key (qc_task_id)
+);
+create index idx_anno_qc_task_proj on anno_qc_task(project_id, qc_status);
+comment on table anno_qc_task is '质检任务表';
+comment on column anno_qc_task.qc_task_id is '质检任务ID';
+comment on column anno_qc_task.project_id is '项目ID';
+comment on column anno_qc_task.source_task_id is '来源标注任务ID';
+comment on column anno_qc_task.sample_strategy is '抽样策略';
+comment on column anno_qc_task.sample_rate is '抽样比例';
+comment on column anno_qc_task.qc_status is '质检任务状态（0待开始 1进行中 2完成）';
+comment on column anno_qc_task.reviewer_id is '质检负责人用户ID';
+comment on column anno_qc_task.create_time is '创建时间';
+comment on column anno_qc_task.update_time is '更新时间';
+
+create table anno_qc_item (
+    qc_item_id bigserial not null,
+    qc_task_id bigint not null,
+    annotation_id bigint not null,
+    qc_item_status char(1) default '0',
+    claimed_by bigint,
+    claimed_at timestamp(0),
+    primary key (qc_item_id)
+);
+create unique index uk_anno_qc_item on anno_qc_item(qc_task_id, annotation_id);
+comment on table anno_qc_item is '质检明细表';
+comment on column anno_qc_item.qc_item_id is '质检明细ID';
+comment on column anno_qc_item.qc_task_id is '质检任务ID';
+comment on column anno_qc_item.annotation_id is '标注结果ID';
+comment on column anno_qc_item.qc_item_status is '质检状态（0待检 1质检中 2已完成）';
+comment on column anno_qc_item.claimed_by is '质检领取人用户ID';
+comment on column anno_qc_item.claimed_at is '领取时间';
+
+create table anno_qc_result (
+    qc_result_id bigserial not null,
+    qc_item_id bigint not null,
+    decision varchar(16) not null,
+    score numeric(5,2),
+    issue_codes text,
+    comment text,
+    reviewed_by bigint,
+    reviewed_at timestamp(0),
+    primary key (qc_result_id)
+);
+create index idx_anno_qcr_decision on anno_qc_result(decision, reviewed_at);
+comment on table anno_qc_result is '质检结果表';
+comment on column anno_qc_result.qc_result_id is '质检结果ID';
+comment on column anno_qc_result.qc_item_id is '质检明细ID';
+comment on column anno_qc_result.decision is '质检结论（pass/reject/rework）';
+comment on column anno_qc_result.score is '质量评分';
+comment on column anno_qc_result.issue_codes is '问题编码集合';
+comment on column anno_qc_result.comment is '质检说明';
+comment on column anno_qc_result.reviewed_by is '质检人用户ID';
+comment on column anno_qc_result.reviewed_at is '质检时间';
+
+create table anno_rework_ticket (
+    rework_id bigserial not null,
+    annotation_id bigint not null,
+    from_qc_result_id bigint not null,
+    rework_status char(1) default '0',
+    assigned_to bigint,
+    due_time timestamp(0),
+    closed_at timestamp(0),
+    primary key (rework_id)
+);
+create index idx_anno_rework_status on anno_rework_ticket(rework_status, due_time);
+comment on table anno_rework_ticket is '返工工单表';
+comment on column anno_rework_ticket.rework_id is '返工单ID';
+comment on column anno_rework_ticket.annotation_id is '标注结果ID';
+comment on column anno_rework_ticket.from_qc_result_id is '来源质检结果ID';
+comment on column anno_rework_ticket.rework_status is '返工状态（0待处理 1处理中 2已关闭）';
+comment on column anno_rework_ticket.assigned_to is '返工处理人用户ID';
+comment on column anno_rework_ticket.due_time is '返工截止时间';
+comment on column anno_rework_ticket.closed_at is '关闭时间';
+
+create table anno_import_job (
+    import_job_id bigserial not null,
+    project_id bigint not null,
+    dataset_id bigint,
+    import_status char(1) default '0',
+    total_items int4 default 0,
+    success_items int4 default 0,
+    failed_items int4 default 0,
+    error_report_uri text,
+    started_at timestamp(0),
+    finished_at timestamp(0),
+    create_by varchar(64) default '',
+    create_time timestamp(0),
+    primary key (import_job_id)
+);
+create index idx_anno_import_proj on anno_import_job(project_id, import_status, started_at);
+comment on table anno_import_job is '导入任务表';
+comment on column anno_import_job.import_job_id is '导入任务ID';
+comment on column anno_import_job.project_id is '项目ID';
+comment on column anno_import_job.dataset_id is '数据集ID';
+comment on column anno_import_job.import_status is '导入状态（0处理中 1成功 2失败）';
+comment on column anno_import_job.total_items is '总条数';
+comment on column anno_import_job.success_items is '成功条数';
+comment on column anno_import_job.failed_items is '失败条数';
+comment on column anno_import_job.error_report_uri is '错误报告地址';
+comment on column anno_import_job.started_at is '开始时间';
+comment on column anno_import_job.finished_at is '结束时间';
+comment on column anno_import_job.create_by is '创建者';
+comment on column anno_import_job.create_time is '创建时间';
+
+create table anno_export_job (
+    export_job_id bigserial not null,
+    project_id bigint not null,
+    task_id bigint,
+    export_format varchar(16) not null,
+    export_status char(1) default '0',
+    version_strategy varchar(32) default 'latest',
+    file_uri text,
+    file_checksum varchar(128),
+    started_at timestamp(0),
+    finished_at timestamp(0),
+    requested_by bigint,
+    primary key (export_job_id)
+);
+create index idx_anno_export_proj on anno_export_job(project_id, export_status, started_at);
+comment on table anno_export_job is '导出任务表';
+comment on column anno_export_job.export_job_id is '导出任务ID';
+comment on column anno_export_job.project_id is '项目ID';
+comment on column anno_export_job.task_id is '任务ID';
+comment on column anno_export_job.export_format is '导出格式（COCO/VOC/YOLO/JSON）';
+comment on column anno_export_job.export_status is '导出状态（0处理中 1成功 2失败）';
+comment on column anno_export_job.version_strategy is '版本策略';
+comment on column anno_export_job.file_uri is '导出文件地址';
+comment on column anno_export_job.file_checksum is '文件校验码';
+comment on column anno_export_job.started_at is '开始时间';
+comment on column anno_export_job.finished_at is '结束时间';
+comment on column anno_export_job.requested_by is '发起人用户ID';
+
+create table anno_export_item (
+    export_item_id bigserial not null,
+    export_job_id bigint not null,
+    item_id bigint not null,
+    annotation_revision_id bigint,
+    item_status char(1) default '0',
+    error_msg varchar(500),
+    primary key (export_item_id)
+);
+create index idx_anno_export_item_job on anno_export_item(export_job_id);
+comment on table anno_export_item is '导出明细表';
+comment on column anno_export_item.export_item_id is '导出明细ID';
+comment on column anno_export_item.export_job_id is '导出任务ID';
+comment on column anno_export_item.item_id is '数据项ID';
+comment on column anno_export_item.annotation_revision_id is '导出版本ID';
+comment on column anno_export_item.item_status is '导出明细状态（0成功 1失败）';
+comment on column anno_export_item.error_msg is '失败原因';
+
+create table anno_audit_log (
+    audit_id bigserial not null,
+    actor_id bigint,
+    module varchar(64) not null,
+    action varchar(64) not null,
+    target_type varchar(64),
+    target_id bigint,
+    before_data jsonb,
+    after_data jsonb,
+    ipaddr varchar(128),
+    create_time timestamp(0),
+    primary key (audit_id)
+);
+create index idx_anno_audit_module_time on anno_audit_log(module, create_time);
+create index idx_anno_audit_target on anno_audit_log(target_type, target_id);
+comment on table anno_audit_log is '标注业务审计日志表';
+comment on column anno_audit_log.audit_id is '审计日志ID';
+comment on column anno_audit_log.actor_id is '操作人用户ID';
+comment on column anno_audit_log.module is '业务模块';
+comment on column anno_audit_log.action is '操作动作';
+comment on column anno_audit_log.target_type is '目标类型';
+comment on column anno_audit_log.target_id is '目标ID';
+comment on column anno_audit_log.before_data is '变更前数据JSON';
+comment on column anno_audit_log.after_data is '变更后数据JSON';
+comment on column anno_audit_log.ipaddr is '操作IP';
+comment on column anno_audit_log.create_time is '操作时间';
+
+alter table anno_project
+    add constraint fk_anno_project_owner foreign key (owner_id) references sys_user (user_id);
+alter table anno_project_member
+    add constraint fk_anno_pm_project foreign key (project_id) references anno_project (project_id);
+alter table anno_project_member
+    add constraint fk_anno_pm_user foreign key (user_id) references sys_user (user_id);
+alter table anno_project_schema
+    add constraint fk_anno_schema_project foreign key (project_id) references anno_project (project_id);
+alter table anno_dataset
+    add constraint fk_anno_dataset_project foreign key (project_id) references anno_project (project_id);
+alter table anno_dataset_item
+    add constraint fk_anno_item_dataset foreign key (dataset_id) references anno_dataset (dataset_id);
+alter table anno_dataset_item
+    add constraint fk_anno_item_project foreign key (project_id) references anno_project (project_id);
+alter table anno_task
+    add constraint fk_anno_task_project foreign key (project_id) references anno_project (project_id);
+alter table anno_task
+    add constraint fk_anno_task_assignee foreign key (assignee_id) references sys_user (user_id);
+alter table anno_task_config
+    add constraint fk_anno_task_config_task foreign key (task_id) references anno_task (task_id);
+alter table anno_task_item
+    add constraint fk_anno_task_item_task foreign key (task_id) references anno_task (task_id);
+alter table anno_task_item
+    add constraint fk_anno_task_item_item foreign key (item_id) references anno_dataset_item (item_id);
+alter table anno_task_item
+    add constraint fk_anno_task_item_assignee foreign key (assignee_id) references sys_user (user_id);
+alter table anno_label_class
+    add constraint fk_anno_label_project foreign key (project_id) references anno_project (project_id);
+alter table anno_label_attr_def
+    add constraint fk_anno_attr_label foreign key (label_id) references anno_label_class (label_id);
+alter table anno_label_attr_option
+    add constraint fk_anno_option_attr foreign key (attr_def_id) references anno_label_attr_def (attr_def_id);
+alter table anno_annotation
+    add constraint fk_anno_ann_task_item foreign key (task_item_id) references anno_task_item (task_item_id);
+alter table anno_annotation
+    add constraint fk_anno_ann_project foreign key (project_id) references anno_project (project_id);
+alter table anno_annotation
+    add constraint fk_anno_ann_task foreign key (task_id) references anno_task (task_id);
+alter table anno_annotation
+    add constraint fk_anno_ann_item foreign key (item_id) references anno_dataset_item (item_id);
+alter table anno_annotation
+    add constraint fk_anno_ann_user foreign key (annotator_id) references sys_user (user_id);
+alter table anno_annotation_revision
+    add constraint fk_anno_revision_ann foreign key (annotation_id) references anno_annotation (annotation_id);
+alter table anno_annotation_revision
+    add constraint fk_anno_revision_user foreign key (changed_by) references sys_user (user_id);
+alter table anno_qc_task
+    add constraint fk_anno_qct_project foreign key (project_id) references anno_project (project_id);
+alter table anno_qc_task
+    add constraint fk_anno_qct_task foreign key (source_task_id) references anno_task (task_id);
+alter table anno_qc_task
+    add constraint fk_anno_qct_reviewer foreign key (reviewer_id) references sys_user (user_id);
+alter table anno_qc_item
+    add constraint fk_anno_qci_task foreign key (qc_task_id) references anno_qc_task (qc_task_id);
+alter table anno_qc_item
+    add constraint fk_anno_qci_ann foreign key (annotation_id) references anno_annotation (annotation_id);
+alter table anno_qc_item
+    add constraint fk_anno_qci_user foreign key (claimed_by) references sys_user (user_id);
+alter table anno_qc_result
+    add constraint fk_anno_qcr_item foreign key (qc_item_id) references anno_qc_item (qc_item_id);
+alter table anno_qc_result
+    add constraint fk_anno_qcr_user foreign key (reviewed_by) references sys_user (user_id);
+alter table anno_rework_ticket
+    add constraint fk_anno_rework_ann foreign key (annotation_id) references anno_annotation (annotation_id);
+alter table anno_rework_ticket
+    add constraint fk_anno_rework_qc foreign key (from_qc_result_id) references anno_qc_result (qc_result_id);
+alter table anno_rework_ticket
+    add constraint fk_anno_rework_user foreign key (assigned_to) references sys_user (user_id);
+alter table anno_import_job
+    add constraint fk_anno_import_project foreign key (project_id) references anno_project (project_id);
+alter table anno_import_job
+    add constraint fk_anno_import_dataset foreign key (dataset_id) references anno_dataset (dataset_id);
+alter table anno_export_job
+    add constraint fk_anno_export_project foreign key (project_id) references anno_project (project_id);
+alter table anno_export_job
+    add constraint fk_anno_export_task foreign key (task_id) references anno_task (task_id);
+alter table anno_export_job
+    add constraint fk_anno_export_user foreign key (requested_by) references sys_user (user_id);
+alter table anno_export_item
+    add constraint fk_anno_exp_item_job foreign key (export_job_id) references anno_export_job (export_job_id);
+alter table anno_export_item
+    add constraint fk_anno_exp_item_data foreign key (item_id) references anno_dataset_item (item_id);
+alter table anno_export_item
+    add constraint fk_anno_exp_item_rev foreign key (annotation_revision_id) references anno_annotation_revision (revision_id);
+alter table anno_audit_log
+    add constraint fk_anno_audit_user foreign key (actor_id) references sys_user (user_id);
+
 CREATE OR REPLACE FUNCTION "find_in_set"(int8, varchar)
     RETURNS "pg_catalog"."bool" AS $BODY$
 DECLARE

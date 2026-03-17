@@ -4,7 +4,7 @@ import {
   Button,
   Card,
   Col,
-  Descript ions,
+  Descriptions,
   Divider,
   Form,
   Input,

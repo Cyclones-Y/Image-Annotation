@@ -1,20 +1,25 @@
- import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Button,
   Card,
   Col,
   Empty,
+  Form,
   Layout,
   List,
+  Modal,
   Progress,
+  Radio,
   Row,
+  Select,
   Skeleton,
   Space,
   Statistic,
   Tag,
   Timeline,
-  Typography
+  Typography,
+  message
 } from 'antd'
 import {
   BarChartOutlined,
@@ -28,6 +33,9 @@ import {
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
 import { HomeDashboardData, fetchHomeDashboard, fetchHomeRealtime } from '../../services/homeApi'
+import { createMockProjects, listProjects, ProjectItem } from '../../services/projectApi'
+import { listProjectTasks } from '../../services/workflowApi'
+import { AnnotationTask } from '../../types/workflow'
 
 const defaultData: HomeDashboardData = {
   overview: { totalProjects: 0, activeProjects: 0, delayedProjects: 0, completedProjects: 0 },
@@ -46,6 +54,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [isMockMode, setIsMockMode] = useState(false)
   const [data, setData] = useState<HomeDashboardData>(defaultData)
+  const [annotateOpen, setAnnotateOpen] = useState(false)
+  const [annotateLoading, setAnnotateLoading] = useState(false)
+  const [annotateProjectId, setAnnotateProjectId] = useState<string>()
+  const [annotateMode, setAnnotateMode] = useState<'task' | 'quick'>('task')
+  const [annotateTaskId, setAnnotateTaskId] = useState<string>()
+  const [projectOptions, setProjectOptions] = useState<ProjectItem[]>([])
+  const [projectTasks, setProjectTasks] = useState<AnnotationTask[]>([])
+
+  const [annotateForm] = Form.useForm<{ projectId: string; taskId?: string }>()
 
   const loadData = async () => {
     setLoading(true)
@@ -60,6 +77,80 @@ export default function HomePage() {
       setLoading(false)
     })
   }, [])
+
+  const loadProjectOptions = async () => {
+    setAnnotateLoading(true)
+    try {
+      const res = await listProjects({ pageNum: 1, pageSize: 100 })
+      if (res.rows.length > 0) {
+        setProjectOptions(res.rows)
+        const firstId = res.rows[0].projectId
+        setAnnotateProjectId(firstId)
+        annotateForm.setFieldsValue({ projectId: firstId, taskId: undefined })
+        return
+      }
+      setProjectOptions([])
+    } catch {
+      const mockRows = createMockProjects()
+      setProjectOptions(mockRows)
+      if (mockRows.length > 0) {
+        const firstId = mockRows[0].projectId
+        setAnnotateProjectId(firstId)
+        annotateForm.setFieldsValue({ projectId: firstId, taskId: undefined })
+      }
+    } finally {
+      setAnnotateLoading(false)
+    }
+  }
+
+  const loadProjectTaskOptions = async (projectId?: string) => {
+    if (!projectId) {
+      setProjectTasks([])
+      setAnnotateTaskId(undefined)
+      annotateForm.setFieldsValue({ taskId: undefined })
+      return
+    }
+    const res = await listProjectTasks(projectId)
+    setProjectTasks(res.rows)
+    if (res.rows.length > 0) {
+      setAnnotateTaskId(res.rows[0].taskId)
+      annotateForm.setFieldsValue({ taskId: res.rows[0].taskId })
+    } else {
+      setAnnotateTaskId(undefined)
+      annotateForm.setFieldsValue({ taskId: undefined })
+    }
+  }
+
+  useEffect(() => {
+    loadProjectTaskOptions(annotateProjectId).catch(() => {})
+  }, [annotateProjectId])
+
+  const openAnnotateEntry = async () => {
+    setAnnotateMode('task')
+    setAnnotateTaskId(undefined)
+    annotateForm.resetFields()
+    await loadProjectOptions()
+    setAnnotateOpen(true)
+  }
+
+  const startAnnotate = async () => {
+    const values = await annotateForm.validateFields()
+    if (!values.projectId) {
+      message.warning('请先选择项目')
+      return
+    }
+    if (annotateMode === 'task') {
+      if (!values.taskId) {
+        message.warning('请先选择任务后再开始标注')
+        return
+      }
+      navigate(`/annotator?projectId=${values.projectId}&taskId=${values.taskId}`)
+      setAnnotateOpen(false)
+      return
+    }
+    navigate(`/annotator?projectId=${values.projectId}`)
+    setAnnotateOpen(false)
+  }
 
   useEffect(() => {
     const timer = window.setInterval(async () => {
@@ -96,7 +187,7 @@ export default function HomePage() {
 
   const quickActions = [
     { title: '进入图库', icon: <PictureOutlined />, onClick: () => navigate('/gallery') },
-    { title: '图像标注', icon: <FormOutlined />, onClick: () => navigate('/annotator') },
+    { title: '图像标注', icon: <FormOutlined />, onClick: () => openAnnotateEntry().catch(() => {}) },
     { title: '项目管理', icon: <ProjectOutlined />, onClick: () => navigate('/projects') },
     { title: '任务统计', icon: <BarChartOutlined />, onClick: () => navigate('/projects') }
   ]
@@ -244,6 +335,67 @@ export default function HomePage() {
       <Layout.Content style={{ padding: '24px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
         {content}
       </Layout.Content>
+      <Modal
+        title="开始标注"
+        className="project-management-modal"
+        open={annotateOpen}
+        onCancel={() => setAnnotateOpen(false)}
+        onOk={() => startAnnotate().catch(() => {})}
+        okText="进入标注"
+        confirmLoading={annotateLoading}
+        width={620}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Alert
+            type="info"
+            showIcon
+            message="请先选择项目，再按任务标注或快速标注进入。按任务标注可追踪执行人、进度与审查记录。"
+          />
+          <Form form={annotateForm} layout="vertical">
+            <Form.Item name="projectId" label="选择项目" rules={[{ required: true, message: '请选择项目' }]}>
+              <Select
+                placeholder={projectOptions.length > 0 ? '请选择项目' : '暂无可用项目，请先在项目管理中创建'}
+                popupClassName="project-management-select-dropdown"
+                options={projectOptions.map((item) => ({
+                  value: item.projectId,
+                  label: `${item.projectName}（${item.projectCode}）`
+                }))}
+                onChange={(value) => setAnnotateProjectId(value)}
+              />
+            </Form.Item>
+            <Radio.Group
+              optionType="button"
+              buttonStyle="solid"
+              value={annotateMode}
+              onChange={(e) => setAnnotateMode(e.target.value)}
+              options={[
+                { label: '按任务标注', value: 'task' },
+                { label: '快速标注', value: 'quick' }
+              ]}
+            />
+            {annotateMode === 'task' ? (
+              <Form.Item name="taskId" label="选择任务" rules={[{ required: true, message: '请选择任务' }]}>
+                <Select
+                  placeholder={projectTasks.length > 0 ? '请选择任务' : '当前项目还没有任务，请先创建任务'}
+                  popupClassName="project-management-select-dropdown"
+                  value={annotateTaskId}
+                  onChange={(value) => setAnnotateTaskId(value)}
+                  options={projectTasks.map((task) => ({
+                    value: task.taskId,
+                    label: `${task.taskName}（${task.assignee} / ${task.status}）`
+                  }))}
+                />
+              </Form.Item>
+            ) : (
+              <Alert
+                type="warning"
+                showIcon
+                message="快速标注不会绑定到具体任务，建议仅用于临时标注或功能验证。"
+              />
+            )}
+          </Form>
+        </Space>
+      </Modal>
     </Layout>
   )
 }
