@@ -32,7 +32,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
-import { HomeDashboardData, fetchHomeDashboard, fetchHomeRealtime } from '../../services/homeApi'
+import { HomeDashboardData, fetchHomeDashboard } from '../../services/homeApi'
 import { createMockProjects, listProjects, ProjectItem } from '../../services/projectApi'
 import { listProjectTasks } from '../../services/workflowApi'
 import { AnnotationTask } from '../../types/workflow'
@@ -151,18 +151,6 @@ export default function HomePage() {
     navigate(`/annotator?projectId=${values.projectId}`)
     setAnnotateOpen(false)
   }
-
-  useEffect(() => {
-    const timer = window.setInterval(async () => {
-      const realtime = await fetchHomeRealtime()
-      if (!realtime) return
-      setData((prev) => ({
-        ...prev,
-        ...realtime
-      }))
-    }, 5000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   const overviewItems = useMemo(
     () => [

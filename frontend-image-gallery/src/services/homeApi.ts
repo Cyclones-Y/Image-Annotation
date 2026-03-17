@@ -133,6 +133,15 @@ function normalizeData(src: any): HomeDashboardData {
   }
 }
 
+function unwrapResponsePayload(src: any): any {
+  if (!src) return src
+  const body = src?.data ?? src
+  if (body && typeof body === 'object' && 'data' in body && body.data) {
+    return body.data
+  }
+  return body
+}
+
 export async function fetchHomeDashboard(useCache = true): Promise<{ data: HomeDashboardData; isMock: boolean }> {
   if (useCache) {
     const cached = readCache()
@@ -143,7 +152,7 @@ export async function fetchHomeDashboard(useCache = true): Promise<{ data: HomeD
 
   try {
     const res = await request.get<any, any>('/api/home/overview')
-    const body = res?.data ?? res
+    const body = unwrapResponsePayload(res)
     const data = normalizeData(body)
     writeCache(data)
     return { data, isMock: false }
@@ -156,7 +165,7 @@ export async function fetchHomeDashboard(useCache = true): Promise<{ data: HomeD
 export async function fetchHomeRealtime(): Promise<Pick<HomeDashboardData, 'onlineUsers' | 'queueBacklog' | 'apiSuccessRate' | 'avgResponseMs'> | null> {
   try {
     const res = await request.get<any, any>('/api/home/system')
-    const body = res?.data ?? res
+    const body = unwrapResponsePayload(res)
     return {
       onlineUsers: Number(body?.onlineUsers ?? 0),
       queueBacklog: Number(body?.queueBacklog ?? 0),

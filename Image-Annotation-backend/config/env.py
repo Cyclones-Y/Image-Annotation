@@ -4,9 +4,16 @@ import os
 import sys
 from typing import Literal
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*args, **kwargs):
+        return False
 from pydantic import computed_field
-from pydantic_settings import BaseSettings
+try:
+    from pydantic_settings import BaseSettings
+except ModuleNotFoundError:
+    from pydantic import BaseModel as BaseSettings
 
 
 class AppSettings(BaseSettings):
