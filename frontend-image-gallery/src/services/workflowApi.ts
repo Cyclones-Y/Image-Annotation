@@ -18,6 +18,15 @@ type WorkflowStore = {
   exports: ExportJob[]
 }
 
+function unwrapResponsePayload(src: any): any {
+  if (!src) return src
+  const body = src?.data ?? src
+  if (body && typeof body === 'object' && 'data' in body && body.data) {
+    return body.data
+  }
+  return body
+}
+
 function now() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
@@ -86,7 +95,8 @@ function buildSnapshot(projectId: string, store: WorkflowStore): WorkflowSnapsho
 export async function listProjectTasks(projectId: string): Promise<{ rows: AnnotationTask[]; isMock: boolean }> {
   try {
     const res = await request.get<any, any>(`/api/workflow/tasks`, { params: { projectId } })
-    const rows = Array.isArray(res?.rows) ? res.rows : Array.isArray(res?.data?.rows) ? res.data.rows : []
+    const body = unwrapResponsePayload(res)
+    const rows = Array.isArray(body?.rows) ? body.rows : []
     return { rows, isMock: false }
   } catch {
     const store = readStore()
@@ -102,7 +112,8 @@ export async function createProjectTask(input: {
 }): Promise<{ task: AnnotationTask; isMock: boolean }> {
   try {
     const res = await request.post<any, any>('/api/workflow/tasks', input)
-    return { task: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { task: body, isMock: false }
   } catch {
     const store = readStore()
     const task: AnnotationTask = {
@@ -124,7 +135,8 @@ export async function createProjectTask(input: {
 export async function saveTaskConfig(input: TaskConfig): Promise<{ config: TaskConfig; isMock: boolean }> {
   try {
     const res = await request.post<any, any>('/api/workflow/config', input)
-    return { config: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { config: body, isMock: false }
   } catch {
     const store = readStore()
     const idx = store.configs.findIndex((item) => item.projectId === input.projectId)
@@ -141,7 +153,8 @@ export async function saveTaskConfig(input: TaskConfig): Promise<{ config: TaskC
 export async function getTaskConfig(projectId: string): Promise<{ config?: TaskConfig; isMock: boolean }> {
   try {
     const res = await request.get<any, any>('/api/workflow/config', { params: { projectId } })
-    return { config: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { config: body, isMock: false }
   } catch {
     const store = readStore()
     return { config: store.configs.find((item) => item.projectId === projectId), isMock: true }
@@ -155,7 +168,8 @@ export async function importDataset(input: {
 }): Promise<{ job: DatasetImportJob; isMock: boolean }> {
   try {
     const res = await request.post<any, any>('/api/workflow/import', input)
-    return { job: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { job: body, isMock: false }
   } catch {
     const store = readStore()
     const job: DatasetImportJob = {
@@ -180,7 +194,8 @@ export async function exportAnnotations(input: {
 }): Promise<{ job: ExportJob; isMock: boolean }> {
   try {
     const res = await request.post<any, any>('/api/workflow/export', input)
-    return { job: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { job: body, isMock: false }
   } catch {
     const store = readStore()
     const job: ExportJob = {
@@ -200,7 +215,8 @@ export async function exportAnnotations(input: {
 export async function getWorkflowSnapshot(projectId: string): Promise<{ snapshot: WorkflowSnapshot; isMock: boolean }> {
   try {
     const res = await request.get<any, any>('/api/workflow/snapshot', { params: { projectId } })
-    return { snapshot: res?.data ?? res, isMock: false }
+    const body = unwrapResponsePayload(res)
+    return { snapshot: body, isMock: false }
   } catch {
     const store = readStore()
     return { snapshot: buildSnapshot(projectId, store), isMock: true }

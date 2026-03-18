@@ -30,7 +30,7 @@ import {
   PictureOutlined,
   ProjectOutlined
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
 import { HomeDashboardData, fetchHomeDashboard } from '../../services/homeApi'
 import { createMockProjects, listProjects, ProjectItem } from '../../services/projectApi'
@@ -51,6 +51,7 @@ const defaultData: HomeDashboardData = {
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [isMockMode, setIsMockMode] = useState(false)
   const [data, setData] = useState<HomeDashboardData>(defaultData)
@@ -144,11 +145,15 @@ export default function HomePage() {
         message.warning('请先选择任务后再开始标注')
         return
       }
-      navigate(`/annotator?projectId=${values.projectId}&taskId=${values.taskId}`)
+      navigate(`/annotator?projectId=${values.projectId}&taskId=${values.taskId}`, {
+        state: { from: `${location.pathname}${location.search}` }
+      })
       setAnnotateOpen(false)
       return
     }
-    navigate(`/annotator?projectId=${values.projectId}`)
+    navigate(`/annotator?projectId=${values.projectId}`, {
+      state: { from: `${location.pathname}${location.search}` }
+    })
     setAnnotateOpen(false)
   }
 

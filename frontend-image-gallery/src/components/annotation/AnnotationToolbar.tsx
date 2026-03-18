@@ -32,6 +32,8 @@ type Props = {
   onClear: () => void
   onImport: () => void
   onExport: () => void
+  disabled?: boolean
+  actionButtons?: ReactNode
 }
 
 export default function AnnotationToolbar({
@@ -48,7 +50,9 @@ export default function AnnotationToolbar({
   onRedo,
   onClear,
   onImport,
-  onExport
+  onExport,
+  disabled = false,
+  actionButtons
 }: Props) {
   const tools: Array<{ key: AnnotationTool; icon: ReactNode; label: string; shortcut: string }> = [
     { key: 'select', icon: <DragOutlined />, label: '选择', shortcut: 'V' },
@@ -68,6 +72,7 @@ export default function AnnotationToolbar({
             <Button
               type={activeTool === tool.key ? 'primary' : 'default'}
               icon={tool.icon}
+              disabled={disabled}
               onClick={() => onToolChange(tool.key)}
             >
               {tool.label}
@@ -83,6 +88,7 @@ export default function AnnotationToolbar({
           style={{ width: 220 }}
           placeholder="选择标签"
           allowClear
+          disabled={disabled}
           value={activeLabelId}
           options={labels.map((label) => ({
             value: label.id,
@@ -92,17 +98,20 @@ export default function AnnotationToolbar({
         />
         <ColorPicker
           value={style.stroke}
+          disabled={disabled}
           onChange={(color: Color) => onStyleChange({ ...style, stroke: color.toHexString() })}
           showText
         />
         <ColorPicker
           value={style.fill}
+          disabled={disabled}
           onChange={(color: Color) => onStyleChange({ ...style, fill: color.toHexString() })}
           showText
         />
         <InputNumber
           min={1}
           max={12}
+          disabled={disabled}
           value={style.strokeWidth}
           onChange={(value) => onStyleChange({ ...style, strokeWidth: Number(value || 1) })}
           addonBefore="线宽"
@@ -113,6 +122,7 @@ export default function AnnotationToolbar({
             min={0.1}
             max={1}
             step={0.05}
+            disabled={disabled}
             value={style.opacity}
             onChange={(value) => onStyleChange({ ...style, opacity: Number(value) })}
           />
@@ -123,25 +133,31 @@ export default function AnnotationToolbar({
 
       <Space wrap>
         <Tooltip title="撤销 (Ctrl+Z)">
-          <Button icon={<UndoOutlined />} disabled={!canUndo} onClick={onUndo}>
+          <Button icon={<UndoOutlined />} disabled={!canUndo || disabled} onClick={onUndo}>
             撤销
           </Button>
         </Tooltip>
         <Tooltip title="重做 (Ctrl+Y)">
-          <Button icon={<RedoOutlined />} disabled={!canRedo} onClick={onRedo}>
+          <Button icon={<RedoOutlined />} disabled={!canRedo || disabled} onClick={onRedo}>
             重做
           </Button>
         </Tooltip>
-        <Button danger icon={<ClearOutlined />} onClick={onClear}>
+        <Button danger icon={<ClearOutlined />} onClick={onClear} disabled={disabled}>
           清空
         </Button>
-        <Button icon={<ImportOutlined />} onClick={onImport}>
+        <Button icon={<ImportOutlined />} onClick={onImport} disabled={disabled}>
           导入
         </Button>
-        <Button icon={<ExportOutlined />} onClick={onExport}>
+        <Button icon={<ExportOutlined />} onClick={onExport} disabled={disabled}>
           导出
         </Button>
       </Space>
+      {actionButtons ? (
+        <>
+          <Divider type="vertical" style={{ height: 32 }} />
+          <Space>{actionButtons}</Space>
+        </>
+      ) : null}
     </Space>
   )
 }

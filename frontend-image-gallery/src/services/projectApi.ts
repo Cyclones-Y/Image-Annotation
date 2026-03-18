@@ -27,6 +27,24 @@ export interface ProjectPageResult {
   total: number
 }
 
+function unwrapResponsePayload(src: any): any {
+  if (!src) return src
+  const body = src?.data ?? src
+  if (body && typeof body === 'object' && 'data' in body && body.data) {
+    return body.data
+  }
+  return body
+}
+
+function ensureBizSuccess(body: any) {
+  const hasCode = typeof body?.code === 'number'
+  const codeFailed = hasCode && body.code !== 200
+  const successFailed = body?.success === false
+  if (codeFailed || successFailed) {
+    throw new Error(body?.msg || '请求失败')
+  }
+}
+
 function normalizeProject(item: any): ProjectItem {
   return {
     projectId: String(item.projectId ?? item.project_id ?? item.id ?? ''),
@@ -44,25 +62,36 @@ function normalizeProject(item: any): ProjectItem {
 
 export async function listProjects(query: ProjectQuery): Promise<ProjectPageResult> {
   const res = await request.get<any, any>('/system/project/list', { params: query })
-  const rows = Array.isArray(res?.rows) ? res.rows.map(normalizeProject) : []
-  return { rows, total: Number(res?.total ?? 0) }
+  const body = unwrapResponsePayload(res)
+  const rows = Array.isArray(body?.rows) ? body.rows.map(normalizeProject) : []
+  return { rows, total: Number(body?.total ?? 0) }
 }
 
 export async function getProject(projectId: string) {
   const res = await request.get<any, any>(`/system/project/${projectId}`)
-  return normalizeProject(res?.data ?? {})
+  const body = unwrapResponsePayload(res)
+  return normalizeProject(body ?? {})
 }
 
 export async function createProject(data: Omit<ProjectItem, 'projectId' | 'createTime'>) {
-  return request.post('/system/project', data)
+  const res = await request.post<any, any>('/system/project', data)
+  const body = res?.data ?? res
+  ensureBizSuccess(body)
+  return body
 }
 
 export async function updateProject(data: ProjectItem) {
-  return request.put('/system/project', data)
+  const res = await request.put<any, any>('/system/project', data)
+  const body = res?.data ?? res
+  ensureBizSuccess(body)
+  return body
 }
 
 export async function removeProject(projectId: string) {
-  return request.delete(`/system/project/${projectId}`)
+  const res = await request.delete<any, any>(`/system/project/${projectId}`)
+  const body = res?.data ?? res
+  ensureBizSuccess(body)
+  return body
 }
 
 export function createMockProjects(): ProjectItem[] {

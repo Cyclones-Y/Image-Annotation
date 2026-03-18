@@ -9,6 +9,7 @@ type Props = {
   labels: LabelDefinition[]
   selectedAnnotation?: AnnotationItem
   selectedLabelIds: string[]
+  disabled?: boolean
   onLabelsChange: (labels: LabelDefinition[]) => void
   onSelectedLabelIdsChange: (ids: string[]) => void
   onAnnotationChange: (annotation: AnnotationItem) => void
@@ -37,6 +38,7 @@ export default function LabelPanel({
   labels,
   selectedAnnotation,
   selectedLabelIds,
+  disabled = false,
   onLabelsChange,
   onSelectedLabelIdsChange,
   onAnnotationChange
@@ -113,23 +115,24 @@ export default function LabelPanel({
     <Space direction="vertical" style={{ width: '100%' }} size={12}>
       <Card size="small" title="标签管理">
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Input.Search placeholder="搜索标签" allowClear value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+          <Input.Search placeholder="搜索标签" allowClear disabled={disabled} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
           <Space.Compact style={{ width: '100%' }}>
-            <Input placeholder="新标签名称" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <ColorPicker value={newColor} onChange={(color: Color) => setNewColor(color.toHexString())} />
+            <Input disabled={disabled} placeholder="新标签名称" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <ColorPicker disabled={disabled} value={newColor} onChange={(color: Color) => setNewColor(color.toHexString())} />
           </Space.Compact>
           <Select
             allowClear
+            disabled={disabled}
             placeholder="可选上级标签"
             value={newParentId}
             options={labels.map((label) => ({ value: label.id, label: label.name }))}
             onChange={(value) => setNewParentId(value)}
           />
           <Space>
-            <Button type="primary" icon={<PlusOutlined />} onClick={addLabel}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={addLabel} disabled={disabled}>
               添加标签
             </Button>
-            <Button danger icon={<DeleteOutlined />} onClick={removeLabels} disabled={selectedLabelIds.length === 0}>
+            <Button danger icon={<DeleteOutlined />} onClick={removeLabels} disabled={selectedLabelIds.length === 0 || disabled}>
               批量删除
             </Button>
           </Space>
@@ -143,6 +146,7 @@ export default function LabelPanel({
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                   <Space>
                     <Checkbox
+                      disabled={disabled}
                       checked={selectedLabelIds.includes(item.id)}
                       onChange={(e) => {
                         if (e.target.checked) {
@@ -167,11 +171,13 @@ export default function LabelPanel({
           <Space direction="vertical" style={{ width: '100%' }}>
             <Select
               placeholder="绑定标签"
+              disabled={disabled}
               value={selectedAnnotation.labelId}
               options={labels.map((label) => ({ value: label.id, label: label.name }))}
               onChange={(value) => onAnnotationChange({ ...selectedAnnotation, labelId: value })}
             />
             <InputNumber
+              disabled={disabled}
               style={{ width: '100%' }}
               min={0}
               max={1}
@@ -181,6 +187,7 @@ export default function LabelPanel({
               onChange={(value) => onAnnotationChange({ ...selectedAnnotation, confidence: Number(value ?? 0) })}
             />
             <Input.TextArea
+              disabled={disabled}
               rows={3}
               value={selectedAnnotation.remark}
               placeholder="备注"
@@ -195,23 +202,25 @@ export default function LabelPanel({
       <Card size="small" title="标签模板">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Input
+            disabled={disabled}
             placeholder="模板名称"
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
-            addonAfter={<SaveOutlined onClick={saveTemplate} />}
+            addonAfter={<SaveOutlined onClick={disabled ? undefined : saveTemplate} />}
           />
           <Select
             allowClear
+            disabled={disabled}
             placeholder="选择模板"
             value={selectedTemplateId}
             options={templates.map((tpl) => ({ value: tpl.id, label: tpl.name }))}
             onChange={(value) => setSelectedTemplateId(value)}
           />
           <Space>
-            <Button onClick={loadTemplate} disabled={!selectedTemplateId}>
+            <Button onClick={loadTemplate} disabled={!selectedTemplateId || disabled}>
               加载模板
             </Button>
-            <Button danger onClick={deleteTemplate} disabled={!selectedTemplateId}>
+            <Button danger onClick={deleteTemplate} disabled={!selectedTemplateId || disabled}>
               删除模板
             </Button>
           </Space>

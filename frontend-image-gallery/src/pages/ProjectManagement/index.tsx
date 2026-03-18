@@ -32,8 +32,9 @@ import {
   PlusOutlined,
   SettingOutlined
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
+import PageNavigation from '../../components/PageNavigation'
 import {
   ProjectItem,
   ProjectQuery,
@@ -44,6 +45,7 @@ import {
   removeProject,
   updateProject
 } from '../../services/projectApi'
+import { UserSelectOption, listUserOptions } from '../../services/userApi'
 import {
   createProjectTask,
   exportAnnotations,
@@ -79,6 +81,7 @@ function generateProjectCode() {
 
 export default function ProjectManagementPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [loading, setLoading] = useState(false)
   const [useMockMode, setUseMockMode] = useState(false)
   const [query, setQuery] = useState<ProjectQuery>({ pageNum: 1, pageSize: 10 })
@@ -88,6 +91,8 @@ export default function ProjectManagementPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ProjectItem | null>(null)
   const [submitLoading, setSubmitLoading] = useState(false)
+  const [ownerOptions, setOwnerOptions] = useState<UserSelectOption[]>([])
+  const [ownerLoading, setOwnerLoading] = useState(false)
   const [form] = Form.useForm<ProjectFormData>()
   const [activeProject, setActiveProject] = useState<ProjectItem | null>(null)
   const [tasks, setTasks] = useState<AnnotationTask[]>([])
@@ -167,6 +172,22 @@ export default function ProjectManagementPage() {
     }
   }
 
+  const extractErrorMessage = (error: any, fallback: string) => {
+    return error?.response?.data?.msg || error?.message || fallback
+  }
+
+  const loadOwnerOptions = useCallback(async () => {
+    setOwnerLoading(true)
+    try {
+      const options = await listUserOptions()
+      setOwnerOptions(options)
+    } catch (error: any) {
+      message.error(extractErrorMessage(error, '加载负责人列表失败'))
+    } finally {
+      setOwnerLoading(false)
+    }
+  }, [])
+
   const loadTaskPanelData = useCallback(async () => {
     if (rows.length === 0) {
       setTaskPanelRows([])
@@ -212,12 +233,10 @@ export default function ProjectManagementPage() {
   }, [rows, activeProject])
 
   useEffect(() => {
-    loadTaskPanelData().catch(() => {})
-    const timer = window.setInterval(() => {
-      loadTaskPanelData().catch(() => {})
-    }, 5000)
-    return () => window.clearInterval(timer)
-  }, [loadTaskPanelData])
+    if (open && ownerOptions.length === 0) {
+      loadOwnerOptions().catch(() => {})
+    }
+  }, [open, ownerOptions.length, loadOwnerOptions])
 
   const statusOptions = useMemo(() => [
     { label: '进行中', value: '0' },
@@ -407,8 +426,8 @@ export default function ProjectManagementPage() {
       await removeProject(row.projectId)
       message.success('删除成功')
       await loadData()
-    } catch {
-      message.error('删除失败')
+    } catch (error: any) {
+      message.error(extractErrorMessage(error, '删除失败'))
     }
   }
 
@@ -464,8 +483,8 @@ export default function ProjectManagementPage() {
       }
       setOpen(false)
       await loadData()
-    } catch {
-      message.error('保存失败')
+    } catch (error: any) {
+      message.error(extractErrorMessage(error, '保存失败'))
     } finally {
       setSubmitLoading(false)
     }
@@ -485,7 +504,6 @@ export default function ProjectManagementPage() {
       message.success(res.isMock ? '任务创建成功（演示）' : '任务创建成功')
       setTaskOpen(false)
       await loadWorkflowData(activeProject)
-      await loadTaskPanelData()
     } catch {
       message.error('任务创建失败')
     } finally {
@@ -560,11 +578,15 @@ export default function ProjectManagementPage() {
         message.warning('请先选择任务后再开始标注')
         return
       }
-      navigate(`/annotator?projectId=${annotateProject.projectId}&taskId=${annotateTaskId}`)
+      navigate(`/annotator?projectId=${annotateProject.projectId}&taskId=${annotateTaskId}`, {
+        state: { from: `${location.pathname}${location.search}` }
+      })
       setAnnotateOpen(false)
       return
     }
-    navigate(`/annotator?projectId=${annotateProject.projectId}`)
+    navigate(`/annotator?projectId=${annotateProject.projectId}`, {
+      state: { from: `${location.pathname}${location.search}` }
+    })
     setAnnotateOpen(false)
   }
 
@@ -589,6 +611,7 @@ export default function ProjectManagementPage() {
         }
       />
       <Layout.Content style={{ padding: '24px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
+        <PageNavigation currentLabel="项目管理面板" menuLabel="工作台" subMenuLabel="项目管理" />
         <Card>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             {useMockMode ? (
@@ -659,7 +682,7 @@ export default function ProjectManagementPage() {
             </Card>
             <Card
               size="small"
-              title="任务列表栏（实时）"
+              title="任务列表栏"
               extra={
                 <Space>
                   <Typography.Text type="secondary">最近刷新：{taskPanelUpdatedAt || '-'}</Typography.Text>
@@ -837,8 +860,15 @@ export default function ProjectManagementPage() {
           </Row>
           <Row gutter={12}>
             <Col span={8}>
-              <Form.Item name="owner" label="负责人" rules={[{ required: true, message: '请输入负责人' }]}>
-                <Input placeholder="例如：张工" />
+              <Form.Item name="owner" label="负责人" rules={[{ required: true, message: '请选择负责人' }]}>
+                <Select
+                  showSearch
+                  options={ownerOptions}
+                  loading={ownerLoading}
+                  placeholder="请选择负责人"
+                  optionFilterProp="label"
+                  popupClassName="project-management-select-dropdown"
+                />
               </Form.Item>
             </Col>
             <Col span={6}>

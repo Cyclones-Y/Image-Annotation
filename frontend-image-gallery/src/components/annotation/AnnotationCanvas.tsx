@@ -25,6 +25,7 @@ type Props = {
   activeLabelId?: string
   annotations: AnnotationItem[]
   selectedId?: string
+  disabled?: boolean
   onSelect: (id?: string) => void
   onChange: (next: AnnotationItem[], options?: { history?: boolean }) => void
 }
@@ -87,6 +88,7 @@ export default function AnnotationCanvas({
   activeLabelId,
   annotations,
   selectedId,
+  disabled = false,
   onSelect,
   onChange
 }: Props) {
@@ -138,6 +140,7 @@ export default function AnnotationCanvas({
   }
 
   const handleWheel = (event: React.WheelEvent<SVGSVGElement>) => {
+    if (disabled) return
     event.preventDefault()
     const screenPoint = getScreenPointFromEvent(event as unknown as ReactPointerEvent<SVGSVGElement>)
     const imagePoint = screenToImage(screenPoint, viewport, imageSize)
@@ -164,6 +167,7 @@ export default function AnnotationCanvas({
   }
 
   const handleCanvasPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (disabled) return
     const imagePoint = getImagePointFromEvent(event)
     if (tool === 'pan') {
       const screenPoint = getScreenPointFromEvent(event)
@@ -206,6 +210,7 @@ export default function AnnotationCanvas({
   }
 
   const handleCanvasPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (disabled) return
     const imagePoint = getImagePointFromEvent(event)
     setCursorPoint(imagePoint)
 
@@ -238,6 +243,7 @@ export default function AnnotationCanvas({
   }
 
   const handleCanvasPointerUp = () => {
+    if (disabled) return
     if (draft) {
       if (draft.type === 'rect') {
         const rect = normalizeRect(draft.start, draft.current)
@@ -295,6 +301,7 @@ export default function AnnotationCanvas({
   }
 
   const handleShapePointerDown = (event: ReactPointerEvent<SVGElement>, item: AnnotationItem) => {
+    if (disabled) return
     event.stopPropagation()
     if (tool !== 'select') return
     const imagePoint = getImagePointFromEvent(event)
@@ -307,6 +314,7 @@ export default function AnnotationCanvas({
     item: AnnotationItem,
     handle: ResizeHandle
   ) => {
+    if (disabled) return
     event.stopPropagation()
     if (tool !== 'select') return
     setResizeState({ id: item.id, handle, origin: item })
@@ -474,11 +482,11 @@ export default function AnnotationCanvas({
       title="图像画布"
       extra={
         <Space>
-          <Button icon={<ZoomOutOutlined />} onClick={() => setViewport((prev) => ({ ...prev, scale: clamp(prev.scale - 0.1, 0.2, 8) }))} />
-          <Button icon={<ZoomInOutlined />} onClick={() => setViewport((prev) => ({ ...prev, scale: clamp(prev.scale + 0.1, 0.2, 8) }))} />
-          <Button icon={<RotateLeftOutlined />} onClick={() => setViewport((prev) => ({ ...prev, rotation: prev.rotation - 5 }))} />
-          <Button icon={<RotateRightOutlined />} onClick={() => setViewport((prev) => ({ ...prev, rotation: prev.rotation + 5 }))} />
-          <Button danger icon={<DeleteOutlined />} disabled={!selectedId} onClick={removeSelected}>
+          <Button disabled={disabled} icon={<ZoomOutOutlined />} onClick={() => setViewport((prev) => ({ ...prev, scale: clamp(prev.scale - 0.1, 0.2, 8) }))} />
+          <Button disabled={disabled} icon={<ZoomInOutlined />} onClick={() => setViewport((prev) => ({ ...prev, scale: clamp(prev.scale + 0.1, 0.2, 8) }))} />
+          <Button disabled={disabled} icon={<RotateLeftOutlined />} onClick={() => setViewport((prev) => ({ ...prev, rotation: prev.rotation - 5 }))} />
+          <Button disabled={disabled} icon={<RotateRightOutlined />} onClick={() => setViewport((prev) => ({ ...prev, rotation: prev.rotation + 5 }))} />
+          <Button danger icon={<DeleteOutlined />} disabled={!selectedId || disabled} onClick={removeSelected}>
             删除对象
           </Button>
         </Space>
@@ -491,7 +499,7 @@ export default function AnnotationCanvas({
             缩放：{Math.round(viewport.scale * 100)}% | 旋转：{viewport.rotation}°
           </Typography.Text>
           <div style={{ width: 200 }}>
-            <Slider min={0.2} max={4} step={0.1} value={viewport.scale} onChange={(value) => setViewport((prev) => ({ ...prev, scale: Number(value) }))} />
+            <Slider disabled={disabled} min={0.2} max={4} step={0.1} value={viewport.scale} onChange={(value) => setViewport((prev) => ({ ...prev, scale: Number(value) }))} />
           </div>
         </Space>
         <div
@@ -517,7 +525,7 @@ export default function AnnotationCanvas({
               onDoubleClick={() => {
                 if (tool === 'polygon') finishPolygon()
               }}
-              style={{ userSelect: 'none' }}
+              style={{ userSelect: 'none', cursor: disabled ? 'not-allowed' : undefined }}
             >
               <image href={imageSrc} x={imageRect.x} y={imageRect.y} width={imageRect.width} height={imageRect.height} preserveAspectRatio="none" />
               {orderedAnnotations.map((item) => (
@@ -540,7 +548,7 @@ export default function AnnotationCanvas({
             光标：{cursorPoint ? `${cursorPoint.x.toFixed(1)}, ${cursorPoint.y.toFixed(1)}` : '-'}
           </Typography.Text>
           {tool === 'polygon' && polygonDraft.length > 0 ? (
-            <Button type="primary" size="small" onClick={finishPolygon}>
+            <Button type="primary" size="small" disabled={disabled} onClick={finishPolygon}>
               完成多边形
             </Button>
           ) : null}

@@ -27,6 +27,7 @@ from module_annotation.entity.vo.annotation_vo import (  # noqa: E402
     WorkflowTaskModel,
 )
 from module_annotation.service.annotation_service import AnnotationService  # noqa: E402
+from module_annotation.service.project_service import ProjectService  # noqa: E402
 from server import create_app  # noqa: E402
 
 
@@ -40,7 +41,7 @@ def test_app(monkeypatch: pytest.MonkeyPatch) -> Any:
     async def _fake_get_current_user(request, token: str, db):  # noqa: ARG001
         return CurrentUserModel(permissions=[], roles=[], user=UserInfoModel(user_id=1, user_name='admin'))
 
-    async def _fake_overview(db, current_user):  # noqa: ARG001
+    async def _fake_overview(request, db, current_user):  # noqa: ARG001
         return HomeDashboardModel(
             overview={'totalProjects': 1, 'activeProjects': 1, 'delayedProjects': 0, 'completedProjects': 0},
             tasks={'pendingAnnotate': 1, 'annotating': 0, 'pendingReview': 0, 'reviewed': 0, 'todayDone': 0},
@@ -157,6 +158,56 @@ def test_app(monkeypatch: pytest.MonkeyPatch) -> Any:
             roles=['owner'],
         )
 
+    async def _fake_project_page(db, query_object):  # noqa: ARG001
+        from common.vo import PageModel
+        from module_annotation.entity.vo.project_vo import ProjectModel
+
+        return PageModel[ProjectModel](
+            rows=[
+                ProjectModel(
+                    projectId=1,
+                    projectCode='IMG-ANNO-001',
+                    projectName='自动驾驶目标检测',
+                    owner='admin',
+                    taskTotal=10,
+                    completedCount=6,
+                    status='0',
+                    deadline='2026-04-10 18:00:00',
+                    createTime='2026-03-10 09:30:00',
+                    remark='demo',
+                )
+            ],
+            pageNum=1,
+            pageSize=10,
+            total=1,
+            hasNext=False,
+        )
+
+    async def _fake_project_detail(db, project_id: int):  # noqa: ARG001
+        from module_annotation.entity.vo.project_vo import ProjectModel
+
+        return ProjectModel(
+            projectId=project_id,
+            projectCode='IMG-ANNO-001',
+            projectName='自动驾驶目标检测',
+            owner='admin',
+            taskTotal=10,
+            completedCount=6,
+            status='0',
+            deadline='2026-04-10 18:00:00',
+            createTime='2026-03-10 09:30:00',
+            remark='demo',
+        )
+
+    async def _fake_project_create(db, payload, current_user):  # noqa: ARG001
+        return CrudResponseModel(is_success=True, message='新增成功')
+
+    async def _fake_project_update(db, payload, current_user):  # noqa: ARG001
+        return CrudResponseModel(is_success=True, message='修改成功')
+
+    async def _fake_project_delete(db, project_id: int, current_user):  # noqa: ARG001
+        return CrudResponseModel(is_success=True, message='删除成功')
+
     app.dependency_overrides[get_db] = _fake_get_db
     monkeypatch.setattr(LoginService, 'get_current_user', _fake_get_current_user)
     monkeypatch.setattr(AnnotationService, 'get_home_overview_services', _fake_overview)
@@ -172,6 +223,11 @@ def test_app(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(AnnotationService, 'submit_annotation_services', _fake_submit)
     monkeypatch.setattr(AnnotationService, 'get_annotation_revisions_services', _fake_revisions)
     monkeypatch.setattr(AnnotationService, 'get_annotation_permission_services', _fake_permission)
+    monkeypatch.setattr(ProjectService, 'get_project_page_services', _fake_project_page)
+    monkeypatch.setattr(ProjectService, 'get_project_detail_services', _fake_project_detail)
+    monkeypatch.setattr(ProjectService, 'create_project_services', _fake_project_create)
+    monkeypatch.setattr(ProjectService, 'update_project_services', _fake_project_update)
+    monkeypatch.setattr(ProjectService, 'delete_project_services', _fake_project_delete)
     return app
 
 
@@ -323,3 +379,73 @@ async def test_annotation_permissions_ok(test_app) -> None:
         res = await client.get('/api/annotation/permissions?projectId=1', headers={'Authorization': 'Bearer test'})
         assert res.status_code == 200
         assert res.json().get('data', {}).get('canAnnotate') is True
+
+
+@pytest.mark.asyncio
+async def test_project_list_ok(test_app) -> None:
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        res = await client.get('/system/project/list?pageNum=1&pageSize=10', headers={'Authorization': 'Bearer test'})
+        assert res.status_code == 200
+        body = res.json()
+        assert body.get('total') == 1
+        assert body.get('rows', [])[0].get('projectCode') == 'IMG-ANNO-001'
+
+
+@pytest.mark.asyncio
+async def test_project_detail_ok(test_app) -> None:
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        res = await client.get('/system/project/1', headers={'Authorization': 'Bearer test'})
+        assert res.status_code == 200
+        assert res.json().get('data', {}).get('projectId') == 1
+
+
+@pytest.mark.asyncio
+async def test_project_create_ok(test_app) -> None:
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        res = await client.post(
+            '/system/project',
+            headers={'Authorization': 'Bearer test'},
+            json={
+                'projectCode': 'IMG-ANNO-009',
+                'projectName': 'test',
+                'owner': 'admin',
+                'taskTotal': 0,
+                'completedCount': 0,
+                'status': '0',
+            },
+        )
+        assert res.status_code == 200
+        assert res.json().get('msg') == '新增成功'
+
+
+@pytest.mark.asyncio
+async def test_project_update_ok(test_app) -> None:
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        res = await client.put(
+            '/system/project',
+            headers={'Authorization': 'Bearer test'},
+            json={
+                'projectId': 1,
+                'projectCode': 'IMG-ANNO-001',
+                'projectName': 'test',
+                'owner': 'admin',
+                'taskTotal': 0,
+                'completedCount': 0,
+                'status': '0',
+            },
+        )
+        assert res.status_code == 200
+        assert res.json().get('msg') == '修改成功'
+
+
+@pytest.mark.asyncio
+async def test_project_delete_ok(test_app) -> None:
+    transport = ASGITransport(app=test_app)
+    async with AsyncClient(transport=transport, base_url='http://test') as client:
+        res = await client.delete('/system/project/1', headers={'Authorization': 'Bearer test'})
+        assert res.status_code == 200
+        assert res.json().get('msg') == '删除成功'

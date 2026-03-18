@@ -4,6 +4,7 @@ import { FormOutlined, HomeOutlined, ProjectOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
 import ImageGallery from '../../components/ImageGallery'
+import PageNavigation from '../../components/PageNavigation'
 
 export default function GalleryPage() {
   const navigate = useNavigate()
@@ -26,7 +27,7 @@ export default function GalleryPage() {
               type="text"
               icon={<FormOutlined />}
               style={{ color: 'rgba(255,255,255,0.8)' }}
-              onClick={() => navigate('/annotator')}
+              onClick={() => navigate('/annotator', { state: { from: '/gallery' } })}
             >
               图像标注
             </Button>
@@ -43,6 +44,7 @@ export default function GalleryPage() {
       />
       
       <Layout.Content style={{ padding: '24px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>
+        <PageNavigation currentLabel="图库页面" menuLabel="工作台" subMenuLabel="图库" />
         <ImageGallery />
       </Layout.Content>
     </Layout>

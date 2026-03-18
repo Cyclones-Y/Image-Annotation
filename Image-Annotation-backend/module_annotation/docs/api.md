@@ -15,12 +15,19 @@
 - `POST /api/workflow/export`：创建导出任务并返回状态。
 - `GET /api/workflow/snapshot`：查询项目工作流快照。
 
-### 1.3 标注执行
+### 1.3 项目管理
+- `GET /system/project/list`：项目分页查询（项目名称、编码、负责人、状态）。
+- `GET /system/project/{projectId}`：项目详情。
+- `POST /system/project`：创建项目。
+- `PUT /system/project`：修改项目。
+- `DELETE /system/project/{projectId}`：删除项目（软删除）。
+
+### 1.4 标注执行
 - `GET /api/annotation/detail`：按任务项获取标注详情。
 - `POST /api/annotation/submit`：保存草稿或提交标注结果。
 - `GET /api/annotation/revisions`：查询标注版本历史。
 
-### 1.4 用户权限管理
+### 1.5 用户权限管理
 - `GET /api/annotation/permissions`：查询当前用户在项目内的标注/审核/导出权限。
 
 ## 2. 统一约定
@@ -37,6 +44,11 @@
 |---|---|---|---|
 | 首页 | GET | `/api/home/overview` | 首页聚合数据 |
 | 首页 | GET | `/api/home/system` | 首页实时指标 |
+| 项目 | GET | `/system/project/list` | 项目分页列表 |
+| 项目 | GET | `/system/project/{projectId}` | 项目详情 |
+| 项目 | POST | `/system/project` | 创建项目 |
+| 项目 | PUT | `/system/project` | 修改项目 |
+| 项目 | DELETE | `/system/project/{projectId}` | 删除项目 |
 | 工作流 | GET | `/api/workflow/tasks` | 任务分页列表 |
 | 工作流 | POST | `/api/workflow/tasks` | 新建任务 |
 | 工作流 | GET | `/api/workflow/config` | 获取任务配置 |

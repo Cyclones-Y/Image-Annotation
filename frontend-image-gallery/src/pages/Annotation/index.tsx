@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Button,
@@ -8,6 +8,7 @@ import {
   Layout,
   List,
   Row,
+  Spin,
   Space,
   Tag,
   Typography,
@@ -16,12 +17,17 @@ import {
   message
 } from 'antd'
 import { HomeOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
+import PageNavigation from '../../components/PageNavigation'
 import AnnotationToolbar from '../../components/annotation/AnnotationToolbar'
 import LabelPanel from '../../components/annotation/LabelPanel'
 import AnnotationCanvas from '../../components/annotation/AnnotationCanvas'
+import SaveExitActions from '../../components/annotation/SaveExitActions'
 import { AnnotationItem, AnnotationStyle, AnnotationTool, ImageSize, LabelDefinition } from '../../types/annotation'
+import { useNavigationGuardState } from '../../state/navigationGuard'
+import { DraftSnapshot, persistAnnotationDraft } from '../../utils/annotationPersistence'
+import { submitAnnotationDraft } from '../../services/annotationApi'
 
 type HistoryState = {
   past: AnnotationItem[][]
@@ -43,12 +49,21 @@ const defaultLabels: LabelDefinition[] = [
   { id: 'label_sign', name: '交通标志', color: '#faad14' }
 ]
 
+const emptyDraftSnapshot: DraftSnapshot = {
+  imageSrc: undefined,
+  labels: defaultLabels,
+  annotations: []
+}
+
 export default function AnnotationPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { setUnsavedState, clearUnsavedState } = useNavigationGuardState()
   const [searchParams] = useSearchParams()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const projectId = searchParams.get('projectId') || ''
   const taskId = searchParams.get('taskId') || ''
+  const taskItemId = searchParams.get('taskItemId') || ''
   const [imageSrc, setImageSrc] = useState<string>()
   const [imageSize, setImageSize] = useState<ImageSize>({ width: 1280, height: 720 })
   const [imageUrlInput, setImageUrlInput] = useState('')
@@ -61,11 +76,96 @@ export default function AnnotationPage() {
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([])
   const [history, setHistory] = useState<HistoryState>({ past: [], future: [] })
   const [lastSavedAt, setLastSavedAt] = useState<string>()
+  const [isSaving, setIsSaving] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const savedSnapshotRef = useRef<DraftSnapshot>(emptyDraftSnapshot)
 
   const selectedAnnotation = useMemo(
     () => annotations.find((item) => item.id === selectedId),
     [annotations, selectedId]
   )
+
+  const buildSnapshot = useCallback(
+    (targetImageSrc: string | undefined, targetLabels: LabelDefinition[], targetAnnotations: AnnotationItem[]): DraftSnapshot => ({
+      imageSrc: targetImageSrc?.startsWith('blob:') ? undefined : targetImageSrc,
+      labels: targetLabels,
+      annotations: targetAnnotations
+    }),
+    []
+  )
+
+  const computeDirtyDetails = useCallback((saved: DraftSnapshot, current: DraftSnapshot) => {
+    const details: string[] = []
+    if ((saved.imageSrc || '') !== (current.imageSrc || '')) {
+      details.push('图像来源有变更')
+    }
+    if (JSON.stringify(saved.labels) !== JSON.stringify(current.labels)) {
+      details.push('标签配置有变更')
+    }
+    if (JSON.stringify(saved.annotations) !== JSON.stringify(current.annotations)) {
+      details.push(`标注对象有变更（当前 ${current.annotations.length} 个）`)
+    }
+    return details
+  }, [])
+
+  const saveDraftNow = useCallback(async () => {
+    const snapshot = buildSnapshot(imageSrc, labels, annotations)
+    persistAnnotationDraft(DRAFT_KEY, snapshot)
+    savedSnapshotRef.current = snapshot
+    setLastSavedAt(new Date().toLocaleTimeString())
+    setHasUnsavedChanges(false)
+    setUnsavedState({
+      isDirty: false,
+      details: []
+    })
+  }, [annotations, buildSnapshot, imageSrc, labels])
+
+  const handleSave = useCallback(async () => {
+    try {
+      setIsSaving(true)
+      await new Promise((resolve) => window.setTimeout(resolve, 220))
+      const payload = buildSnapshot(imageSrc, labels, annotations)
+      if (taskItemId && !Number.isNaN(Number(taskItemId))) {
+        await submitAnnotationDraft({
+          taskItemId: Number(taskItemId),
+          resultJson: payload,
+          submit: false,
+          schemaVersion: 1
+        })
+      }
+      await saveDraftNow()
+      if (taskItemId && !Number.isNaN(Number(taskItemId))) {
+        message.success('已保存并同步后端')
+      } else {
+        message.success('已保存（本地草稿）')
+      }
+    } catch {
+      message.error('保存失败')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [annotations, buildSnapshot, imageSrc, labels, saveDraftNow, taskItemId])
+
+  const handleExitConfirm = useCallback(() => {
+    const from = typeof (location.state as any)?.from === 'string' ? (location.state as any).from : ''
+    const current = `${location.pathname}${location.search}`
+    const fallbackTarget = projectId ? '/projects' : '/home'
+    const target = from && from !== current ? from : fallbackTarget
+    navigate(target, { replace: true, state: { _exitAt: Date.now() } })
+    window.setTimeout(() => {
+      const stillRenderAnnotator = Boolean(document.querySelector('[data-testid="annotation-exit-btn"]'))
+      if (stillRenderAnnotator) {
+        window.location.replace(target)
+      }
+    }, 120)
+  }, [location.pathname, location.search, location.state, navigate, projectId])
+
+  const hasMeaningfulDraft = useCallback((draft: DraftSnapshot) => {
+    const hasImage = Boolean((draft.imageSrc || '').trim())
+    const hasAnnotations = Array.isArray(draft.annotations) && draft.annotations.length > 0
+    const labelsChanged = JSON.stringify(draft.labels || defaultLabels) !== JSON.stringify(defaultLabels)
+    return hasImage || hasAnnotations || labelsChanged
+  }, [])
 
   const applyChange = (next: AnnotationItem[], options?: { history?: boolean }) => {
     const shouldRecord = options?.history ?? true
@@ -193,6 +293,7 @@ export default function AnnotationPage() {
     accept: 'image/*',
     showUploadList: false,
     beforeUpload: (file) => {
+      if (isSaving) return false
       const objectUrl = URL.createObjectURL(file)
       setImageSrc(objectUrl)
       setImageUrlInput('')
@@ -224,39 +325,73 @@ export default function AnnotationPage() {
     const raw = localStorage.getItem(DRAFT_KEY)
     if (!raw) return
     try {
-      const draft = JSON.parse(raw) as {
-        imageSrc?: string
-        labels: LabelDefinition[]
-        annotations: AnnotationItem[]
+      const draft = JSON.parse(raw) as DraftSnapshot
+      const normalizedDraft = {
+        imageSrc: draft.imageSrc,
+        labels: draft.labels || defaultLabels,
+        annotations: draft.annotations || []
+      }
+      if (!hasMeaningfulDraft(normalizedDraft)) {
+        localStorage.removeItem(DRAFT_KEY)
+        savedSnapshotRef.current = emptyDraftSnapshot
+        return
       }
       if (window.confirm('检测到未保存的标注草稿，是否恢复？')) {
-        setLabels(draft.labels || defaultLabels)
-        setAnnotations(draft.annotations || [])
-        if (draft.imageSrc) {
-          setImageSrc(draft.imageSrc)
-          setImageUrlInput(draft.imageSrc)
+        savedSnapshotRef.current = normalizedDraft
+        setLabels(normalizedDraft.labels || defaultLabels)
+        setAnnotations(normalizedDraft.annotations || [])
+        if (normalizedDraft.imageSrc) {
+          setImageSrc(normalizedDraft.imageSrc)
+          setImageUrlInput(normalizedDraft.imageSrc)
         }
+      } else {
+        localStorage.removeItem(DRAFT_KEY)
+        savedSnapshotRef.current = emptyDraftSnapshot
       }
     } catch {
       return
     }
-  }, [])
+  }, [hasMeaningfulDraft])
+
+  useEffect(() => {
+    const currentSnapshot = buildSnapshot(imageSrc, labels, annotations)
+    const details = computeDirtyDetails(savedSnapshotRef.current, currentSnapshot)
+    setHasUnsavedChanges(details.length > 0)
+    setUnsavedState({
+      isDirty: details.length > 0,
+      details,
+      saveNow: saveDraftNow
+    })
+  }, [annotations, buildSnapshot, computeDirtyDetails, imageSrc, labels, saveDraftNow, setUnsavedState])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const payload = {
-        imageSrc: imageSrc?.startsWith('blob:') ? undefined : imageSrc,
-        labels,
-        annotations
+      const currentSnapshot = buildSnapshot(imageSrc, labels, annotations)
+      if (!hasMeaningfulDraft(currentSnapshot)) {
+        localStorage.removeItem(DRAFT_KEY)
+        savedSnapshotRef.current = emptyDraftSnapshot
+        return
       }
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload))
+      const hasChanges = computeDirtyDetails(savedSnapshotRef.current, currentSnapshot).length > 0
+      if (!hasChanges) {
+        return
+      }
+      persistAnnotationDraft(DRAFT_KEY, currentSnapshot)
+      savedSnapshotRef.current = currentSnapshot
       setLastSavedAt(new Date().toLocaleTimeString())
     }, 800)
     return () => window.clearTimeout(timer)
-  }, [imageSrc, labels, annotations])
+  }, [annotations, buildSnapshot, computeDirtyDetails, hasMeaningfulDraft, imageSrc, labels])
+
+  useEffect(() => {
+    return () => {
+      clearUnsavedState()
+    }
+  }, [clearUnsavedState])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isSaving) return
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         undo()
@@ -285,7 +420,7 @@ export default function AnnotationPage() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [annotations, selectedId])
+  }, [annotations, isSaving, selectedId])
 
   const ordered = useMemo(() => [...annotations].sort((a, b) => b.zIndex - a.zIndex), [annotations])
 
@@ -295,17 +430,37 @@ export default function AnnotationPage() {
         title="图像标注模块"
         actions={
           <Space>
-            <Button type="text" icon={<HomeOutlined />} style={{ color: 'rgba(255,255,255,0.8)' }} onClick={() => navigate('/home')}>
+            <Button
+              type="text"
+              disabled={isSaving}
+              icon={<HomeOutlined />}
+              style={{ color: 'rgba(255,255,255,0.8)' }}
+              onClick={() => navigate('/home')}
+            >
               首页
             </Button>
-            <Button type="text" icon={<PictureOutlined />} style={{ color: 'rgba(255,255,255,0.8)' }} onClick={() => navigate('/gallery')}>
+            <Button
+              type="text"
+              disabled={isSaving}
+              icon={<PictureOutlined />}
+              style={{ color: 'rgba(255,255,255,0.8)' }}
+              onClick={() => navigate('/gallery')}
+            >
               图库
             </Button>
           </Space>
         }
       />
       <Layout.Content style={{ padding: 16, maxWidth: 1800, margin: '0 auto', width: '100%' }}>
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Spin spinning={isSaving} tip="保存中，请稍候...">
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <PageNavigation
+            currentLabel="标注工作台"
+            menuLabel="工作台"
+            subMenuLabel="图像标注"
+            fallbackPath={projectId ? '/projects' : '/home'}
+            showBackButton={false}
+          />
           <Alert
             type="info"
             showIcon
@@ -314,16 +469,17 @@ export default function AnnotationPage() {
           <Card size="small">
             <Space wrap>
               <Upload {...uploadProps}>
-                <Button icon={<UploadOutlined />}>上传图像</Button>
+                <Button disabled={isSaving} icon={<UploadOutlined />}>上传图像</Button>
               </Upload>
               <Input
+                disabled={isSaving}
                 style={{ width: 420 }}
                 placeholder="输入图像地址（支持 JPG/PNG/WEBP/GIF 等）"
                 value={imageUrlInput}
                 onChange={(e) => setImageUrlInput(e.target.value)}
                 onPressEnter={loadImageFromUrl}
               />
-              <Button onClick={loadImageFromUrl}>加载地址图像</Button>
+              <Button disabled={isSaving} onClick={loadImageFromUrl}>加载地址图像</Button>
               <Tag color="blue">自动保存：{lastSavedAt || '未保存'}</Tag>
               {projectId ? <Tag color="purple">项目ID：{projectId}</Tag> : null}
               {taskId ? <Tag color="geekblue">任务ID：{taskId}</Tag> : null}
@@ -337,6 +493,7 @@ export default function AnnotationPage() {
             style={style}
             canUndo={history.past.length > 0}
             canRedo={history.future.length > 0}
+            disabled={isSaving}
             onToolChange={setTool}
             onLabelChange={setActiveLabelId}
             onStyleChange={setStyle}
@@ -345,6 +502,15 @@ export default function AnnotationPage() {
             onClear={clearCanvas}
             onImport={handleImport}
             onExport={handleExport}
+            actionButtons={
+              <SaveExitActions
+                saving={isSaving}
+                disabled={isSaving}
+                hasUnsavedChanges={hasUnsavedChanges}
+                onSave={handleSave}
+                onExitConfirm={handleExitConfirm}
+              />
+            }
           />
           <input ref={importInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleImportFile} />
 
@@ -359,6 +525,7 @@ export default function AnnotationPage() {
                 annotations={annotations}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
+                disabled={isSaving}
                 onChange={applyChange}
               />
             </Col>
@@ -368,6 +535,7 @@ export default function AnnotationPage() {
                   labels={labels}
                   selectedAnnotation={selectedAnnotation}
                   selectedLabelIds={selectedLabelIds}
+                  disabled={isSaving}
                   onLabelsChange={setLabels}
                   onSelectedLabelIdsChange={setSelectedLabelIds}
                   onAnnotationChange={updateSelectedAnnotation}
@@ -429,7 +597,8 @@ export default function AnnotationPage() {
               </Space>
             </Col>
           </Row>
-        </Space>
+          </Space>
+        </Spin>
       </Layout.Content>
     </Layout>
   )

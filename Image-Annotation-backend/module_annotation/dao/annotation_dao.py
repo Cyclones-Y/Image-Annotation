@@ -189,7 +189,16 @@ class AnnotationDao:
         cls, db: AsyncSession, query_object: WorkflowTaskPageQueryModel, is_page: bool = True
     ) -> PageModel | list[dict[str, Any]]:
         query: Select = (
-            select(AnnoTask, SysUser.user_name)
+            select(
+                AnnoTask.task_id.label('task_id'),
+                AnnoTask.project_id.label('project_id'),
+                AnnoTask.task_name.label('task_name'),
+                AnnoTask.priority.label('priority'),
+                AnnoTask.task_status.label('task_status'),
+                AnnoTask.create_time.label('create_time'),
+                AnnoTask.update_time.label('update_time'),
+                SysUser.user_name.label('user_name'),
+            )
             .join(SysUser, SysUser.user_id == AnnoTask.assignee_id, isouter=True)
             .where(AnnoTask.project_id == query_object.project_id)
             .order_by(desc(AnnoTask.create_time))
