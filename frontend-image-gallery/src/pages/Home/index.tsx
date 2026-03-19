@@ -28,7 +28,8 @@ import {
   FolderOpenOutlined,
   FormOutlined,
   PictureOutlined,
-  ProjectOutlined
+  ProjectOutlined,
+  TagsOutlined
 } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppHeader from '../../components/AppHeader'
@@ -178,9 +179,16 @@ export default function HomePage() {
     [data.tasks]
   )
 
+  const openLabelManagement = () => {
+    const selectedProjectId = annotateProjectId || projectOptions[0]?.projectId
+    const query = selectedProjectId ? `?projectId=${selectedProjectId}` : ''
+    navigate(`/label-management${query}`)
+  }
+
   const quickActions = [
     { title: '进入图库', icon: <PictureOutlined />, onClick: () => navigate('/gallery') },
     { title: '图像标注', icon: <FormOutlined />, onClick: () => openAnnotateEntry().catch(() => {}) },
+    { title: '标签管理', icon: <TagsOutlined />, onClick: () => openLabelManagement() },
     { title: '项目管理', icon: <ProjectOutlined />, onClick: () => navigate('/projects') },
     { title: '任务统计', icon: <BarChartOutlined />, onClick: () => navigate('/projects') }
   ]
@@ -320,9 +328,14 @@ export default function HomePage() {
       <AppHeader
         title="标注平台首页"
         actions={
-          <Button type="text" icon={<PictureOutlined />} style={{ color: 'rgba(255,255,255,0.8)' }} onClick={() => navigate('/gallery')}>
-            图库
-          </Button>
+          <Space>
+            <Button type="text" icon={<TagsOutlined />} style={{ color: 'rgba(255,255,255,0.8)' }} onClick={openLabelManagement}>
+              标签管理
+            </Button>
+            <Button type="text" icon={<PictureOutlined />} style={{ color: 'rgba(255,255,255,0.8)' }} onClick={() => navigate('/gallery')}>
+              图库
+            </Button>
+          </Space>
         }
       />
       <Layout.Content style={{ padding: '24px', maxWidth: 1600, margin: '0 auto', width: '100%' }}>

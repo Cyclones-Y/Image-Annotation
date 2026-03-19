@@ -67,12 +67,19 @@ export type LabelDefinition = {
   id: string
   name: string
   color: string
+  type?: string
+  category?: string
+  usageCount?: number
+  lastUsedAt?: string
   parentId?: string
 }
 
 export type LabelTemplate = {
   id: string
   name: string
+  category?: string
+  version?: number
+  visibility?: 'private' | 'project' | 'public'
   labels: LabelDefinition[]
 }
 

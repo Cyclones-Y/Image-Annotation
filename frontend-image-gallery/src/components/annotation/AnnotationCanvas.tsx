@@ -101,6 +101,7 @@ export default function AnnotationCanvas({
   const [moveState, setMoveState] = useState<{ id: string; start: Point; origin: AnnotationItem } | null>(null)
   const [resizeState, setResizeState] = useState<{ id: string; handle: ResizeHandle; origin: AnnotationItem } | null>(null)
   const [panState, setPanState] = useState<{ startX: number; startY: number; offsetX: number; offsetY: number } | null>(null)
+  const autoFittedImageRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -112,6 +113,29 @@ export default function AnnotationCanvas({
     observer.observe(containerRef.current)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (!imageSrc) return
+    if (!imageSize.width || !imageSize.height) return
+    if (!canvasSize.width || !canvasSize.height) return
+    const key = `${imageSrc}-${imageSize.width}x${imageSize.height}-${canvasSize.width}x${canvasSize.height}`
+    if (autoFittedImageRef.current === key) return
+    const scale = Math.max(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+    const nextScale = clamp(scale, 0.2, 8)
+    const renderedWidth = imageSize.width * nextScale
+    const renderedHeight = imageSize.height * nextScale
+    const cx = imageSize.width / 2
+    const cy = imageSize.height / 2
+    const left = (canvasSize.width - renderedWidth) / 2
+    const top = (canvasSize.height - renderedHeight) / 2
+    setViewport({
+      scale: nextScale,
+      offsetX: left - cx * (1 - nextScale),
+      offsetY: top - cy * (1 - nextScale),
+      rotation: 0
+    })
+    autoFittedImageRef.current = key
+  }, [imageSrc, imageSize.width, imageSize.height, canvasSize.width, canvasSize.height])
 
   const orderedAnnotations = useMemo(
     () => [...annotations].sort((a, b) => a.zIndex - b.zIndex),
@@ -506,7 +530,9 @@ export default function AnnotationCanvas({
           ref={containerRef}
           style={{
             width: '100%',
-            height: 620,
+            height: 'calc(100vh - 250px)',
+            minHeight: 620,
+            maxHeight: 980,
             background: '#111827',
             borderRadius: 8,
             overflow: 'hidden',
@@ -527,7 +553,7 @@ export default function AnnotationCanvas({
               }}
               style={{ userSelect: 'none', cursor: disabled ? 'not-allowed' : undefined }}
             >
-              <image href={imageSrc} x={imageRect.x} y={imageRect.y} width={imageRect.width} height={imageRect.height} preserveAspectRatio="none" />
+              <image href={imageSrc} x={imageRect.x} y={imageRect.y} width={imageRect.width} height={imageRect.height} preserveAspectRatio="xMidYMid meet" />
               {orderedAnnotations.map((item) => (
                 <g key={item.id}>
                   {renderShape(item)}

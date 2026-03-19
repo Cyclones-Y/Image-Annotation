@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, CHAR, BigInteger, Column, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import JSON, CHAR, BigInteger, Column, DateTime, Index, Integer, Numeric, String, Text
 
 from config.database import Base
 
@@ -154,3 +154,85 @@ class AnnoExportJob(Base):
     started_at = Column(DateTime, nullable=True, default=datetime.now(), comment='开始时间')
     finished_at = Column(DateTime, nullable=True, comment='结束时间')
     requested_by = Column(BigInteger, nullable=True, comment='发起人用户ID')
+
+
+class AnnoLabel(Base):
+    __tablename__ = 'anno_label'
+    __table_args__ = (
+        Index('idx_anno_label_project_name', 'project_id', 'label_name'),
+        Index('idx_anno_label_project_category', 'project_id', 'label_category'),
+        Index('idx_anno_label_project_usage', 'project_id', 'usage_count'),
+        {'comment': '标签主表'},
+    )
+
+    label_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='标签ID')
+    project_id = Column(BigInteger, nullable=False, comment='项目ID')
+    label_name = Column(String(128), nullable=False, comment='标签名称')
+    label_type = Column(String(32), nullable=True, server_default='object', comment='标签类型')
+    label_category = Column(String(64), nullable=True, server_default='default', comment='标签分类')
+    label_color = Column(String(16), nullable=True, server_default='#1677ff', comment='颜色')
+    usage_count = Column(BigInteger, nullable=True, server_default='0', comment='使用频次')
+    last_used_at = Column(DateTime, nullable=True, comment='最后使用时间')
+    del_flag = Column(CHAR(1), nullable=True, server_default='0', comment='删除标志')
+    create_by = Column(String(64), nullable=True, server_default="''", comment='创建者')
+    create_time = Column(DateTime, nullable=True, default=datetime.now(), comment='创建时间')
+    update_by = Column(String(64), nullable=True, server_default="''", comment='更新者')
+    update_time = Column(DateTime, nullable=True, default=datetime.now(), comment='更新时间')
+
+
+class AnnoLabelTemplate(Base):
+    __tablename__ = 'anno_label_template'
+    __table_args__ = (
+        Index('idx_anno_label_template_project_code', 'project_id', 'template_code'),
+        Index('idx_anno_label_template_latest', 'project_id', 'is_latest'),
+        {'comment': '标签模板表'},
+    )
+
+    template_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='模板ID')
+    template_code = Column(String(64), nullable=False, comment='模板编码')
+    project_id = Column(BigInteger, nullable=False, comment='项目ID')
+    template_name = Column(String(128), nullable=False, comment='模板名称')
+    template_category = Column(String(64), nullable=True, server_default='default', comment='模板分类')
+    template_version = Column(Integer, nullable=True, server_default='1', comment='模板版本')
+    visibility = Column(String(16), nullable=True, server_default='project', comment='可见范围')
+    is_latest = Column(CHAR(1), nullable=True, server_default='1', comment='是否最新版本')
+    owner_id = Column(BigInteger, nullable=True, comment='创建人')
+    description = Column(String(500), nullable=True, comment='模板说明')
+    del_flag = Column(CHAR(1), nullable=True, server_default='0', comment='删除标志')
+    create_by = Column(String(64), nullable=True, server_default="''", comment='创建者')
+    create_time = Column(DateTime, nullable=True, default=datetime.now(), comment='创建时间')
+    update_by = Column(String(64), nullable=True, server_default="''", comment='更新者')
+    update_time = Column(DateTime, nullable=True, default=datetime.now(), comment='更新时间')
+
+
+class AnnoLabelTemplateItem(Base):
+    __tablename__ = 'anno_label_template_item'
+    __table_args__ = (
+        Index('idx_anno_label_template_item_template', 'template_id'),
+        Index('idx_anno_label_template_item_label', 'label_id'),
+        {'comment': '标签模板与标签关系表'},
+    )
+
+    template_item_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='关系ID')
+    template_id = Column(BigInteger, nullable=False, comment='模板ID')
+    label_id = Column(BigInteger, nullable=False, comment='标签ID')
+    sort_no = Column(Integer, nullable=True, server_default='0', comment='排序')
+    create_time = Column(DateTime, nullable=True, default=datetime.now(), comment='创建时间')
+
+
+class AnnoLabelMigration(Base):
+    __tablename__ = 'anno_label_migration'
+    __table_args__ = (
+        Index('idx_anno_label_migration_project', 'project_id'),
+        Index('idx_anno_label_migration_source_target', 'source_label_id', 'target_label_id'),
+        {'comment': '标签迁移记录表'},
+    )
+
+    migration_id = Column(BigInteger, primary_key=True, autoincrement=True, comment='迁移ID')
+    project_id = Column(BigInteger, nullable=False, comment='项目ID')
+    source_label_id = Column(BigInteger, nullable=False, comment='源标签ID')
+    target_label_id = Column(BigInteger, nullable=False, comment='目标标签ID')
+    affected_annotations = Column(BigInteger, nullable=True, server_default='0', comment='影响标注数')
+    migrate_reason = Column(String(256), nullable=True, comment='迁移原因')
+    create_by = Column(String(64), nullable=True, server_default="''", comment='创建者')
+    create_time = Column(DateTime, nullable=True, default=datetime.now(), comment='创建时间')

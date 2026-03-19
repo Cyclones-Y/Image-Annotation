@@ -18,8 +18,6 @@ from module_annotation.entity.do.annotation_do import (
     AnnoTaskItem,
 )
 from module_annotation.entity.vo.annotation_vo import (
-    AnnotationSubmitModel,
-    ExportCreateModel,
     TaskConfigModel,
     WorkflowTaskCreateModel,
     WorkflowTaskPageQueryModel,

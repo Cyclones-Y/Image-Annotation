@@ -28,6 +28,7 @@ from module_annotation.entity.vo.annotation_vo import (
     WorkflowTaskModel,
     WorkflowTaskPageQueryModel,
 )
+from module_annotation.service.label_service import LabelService
 
 
 class AnnotationService:
@@ -408,6 +409,7 @@ class AnnotationService:
             },
         )
         await AnnotationDao.update_task_item_after_submit(db, payload.task_item_id, payload.submit)
+        await LabelService.record_label_usage_services(db, int(task.project_id), payload.result_json)
         await db.commit()
         return CrudResponseModel(is_success=True, message='提交成功' if payload.submit else '保存成功')
 
